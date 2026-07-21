@@ -2,12 +2,22 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "金十 CFTC 持仓情报站｜公开数据免费，钻石解读进阶",
+  title: "CFTC COT持仓分析",
   description:
-    "基于 CFTC 官方持仓报告的金十产品升级概念 Demo：免费查看真实持仓，钻石 VIP 获得分位、异动与分歧解读。",
+    "CFTC 官方持仓数据移动端分析工具，公开查看持仓与历史趋势，专业版提供深度解读。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
+  },
+  openGraph: {
+    title: "CFTC COT持仓分析",
+    description: "CFTC 官方持仓数据移动端分析工具",
+    images: [{ url: "/cftc-social-preview.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CFTC COT持仓分析",
+    images: ["/cftc-social-preview.png"],
   },
 };
 

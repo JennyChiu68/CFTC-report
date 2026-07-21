@@ -14,17 +14,18 @@ async function render() {
   );
 }
 
-test("server-renders the upgraded CFTC product demo", async () => {
+test("server-renders the reference-style CFTC mobile demo", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /金十 CFTC 持仓情报站/);
-  assert.match(html, /公开数据免费/);
-  assert.match(html, /会员视图切换/);
-  assert.match(html, /钻石 VIP/);
-  assert.match(html, /07\/14/);
+  assert.match(html, /CFTC COT/);
+  assert.match(html, /CFTC 持仓报告/);
+  assert.match(html, /官方数据/);
+  assert.match(html, /2026-07-14/);
+  assert.match(html, /查看黄金完整分析/);
+  assert.match(html, /专业版/);
   assert.match(html, /CFTC 原始说明/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
@@ -45,8 +46,10 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(data, /short: 16126/);
   assert.match(data, /symbol: "DXY"/);
   assert.match(data, /symbol: "BTC"/);
-  assert.match(css, /--shell-width:\s*520px/);
-  assert.match(css, /\.bottom-nav/);
-  assert.match(css, /\.market-row/);
+  assert.match(data, /thirdNet: -195639/);
+  assert.match(css, /max-width: 448px/);
+  assert.match(css, /\.cot-bottom-nav/);
+  assert.match(css, /\.cot-asset-card/);
+  assert.match(css, /\.analysis-tabs/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });

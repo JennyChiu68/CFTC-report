@@ -1,375 +1,380 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  assets,
-  groupOptions,
-  reportMeta,
-  type CftcAsset,
-  type MarketGroup,
-} from "./cftc-data";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { assets, reportMeta, type CftcAsset, type TraderRow } from "./cftc-data";
 
-type Tier = "free" | "diamond";
+type Screen = "home" | "detail" | "pro";
+type DetailTab = "history" | "chart" | "depth";
+type Filter = "全部" | "贵金属" | "能源" | "外汇" | "股指/加密";
 
 const physicalSource = "https://www.cftc.gov/dea/futures/other_lf.htm";
 const financialSource = "https://www.cftc.gov/dea/futures/financial_lf.htm";
-const methodologySource =
-  "https://www.cftc.gov/MarketReports/CommitmentsofTraders/AbouttheCOTReports/index.htm";
+const methodSource = "https://www.cftc.gov/MarketReports/CommitmentsofTraders/AbouttheCOTReports/index.htm";
 
-function netOf(asset: CftcAsset) {
-  return asset.long - asset.short;
-}
+const filters: Array<{ key: Filter; icon?: string }> = [
+  { key: "全部" },
+  { key: "贵金属", icon: "🥇" },
+  { key: "能源", icon: "⚡" },
+  { key: "外汇", icon: "💱" },
+  { key: "股指/加密", icon: "📈" },
+];
 
-function longShare(asset: CftcAsset) {
-  return Math.round((asset.long / (asset.long + asset.short)) * 100);
-}
+const groups = [
+  { key: "贵金属" as const, icon: "🥇", title: "贵金属", subtitle: "黄金、白银、铜", symbols: ["XAU", "XAG", "HG"] },
+  { key: "能源" as const, icon: "⚡", title: "能源", subtitle: "原油、天然气、布伦特", symbols: ["CL", "NG", "BZ"] },
+  { key: "外汇" as const, icon: "💱", title: "外汇", subtitle: "美元指数、欧元、英镑等", symbols: ["DXY", "EUR", "GBP", "JPY", "AUD", "CAD"] },
+  { key: "股指/加密" as const, icon: "📈", title: "股指/加密", subtitle: "标普500、纳斯达克、比特币", symbols: ["ES", "NQ", "BTC"] },
+];
 
-function formatContracts(value: number, signed = false) {
+const displayNames: Record<string, string> = {
+  CL: "原油(WTI)", ES: "标普500", NQ: "纳斯达克100",
+};
+
+const displaySymbols: Record<string, string> = {
+  XAU: "XAU/USD", XAG: "XAG/USD", EUR: "EUR/USD", GBP: "GBP/USD",
+  JPY: "JPY/USD", AUD: "AUD/USD", CAD: "CAD/USD",
+};
+
+const traderLabels: Record<string, string> = {
+  "生产商 / 商业商": "生产商/商业",
+  "交易商 / 中介": "交易商/中介",
+  "资产管理机构": "资管机构",
+  "其他报告交易者": "其他可报告",
+  "非报告交易者": "非报告持仓",
+};
+
+const traderDots = ["#f5ad3d", "#8b5cf6", "#55d39a", "#5d82ff", "#758091"];
+
+const goldChanges: Record<string, { long: number; short: number }> = {
+  "生产商 / 商业商": { long: 1558, short: -279 },
+  "掉期交易商": { long: -268, short: -5925 },
+  "管理基金": { long: 1964, short: -2654 },
+  "其他报告交易者": { long: -8367, short: 3815 },
+  "非报告交易者": { long: -1217, short: -1287 },
+};
+
+const dxyChanges: Record<string, { long: number; short: number }> = {
+  "交易商 / 中介": { long: 280, short: 109 },
+  "资管机构": { long: 1799, short: 1184 },
+  "杠杆基金": { long: -1864, short: -1452 },
+  "其他报告交易者": { long: -116, short: -50 },
+  "非报告交易者": { long: -145, short: 163 },
+};
+
+const oiHistory: Record<string, number[]> = {
+  XAU: [383689, 371776, 369541, 352167, 339330, 332709, 326052, 353489, 379325, 376496, 367932, 369530, 365842, 362274, 354877, 361409, 403925, 411388, 413956, 409789, 420182, 407078, 404391, 409694, 488463, 528004],
+  DXY: [53293, 53384, 54306, 54908, 49411, 50285, 43090, 42278, 40626, 32108, 32496, 30611, 30651, 32911, 36573, 38735, 36113, 35456, 32012, 29871, 26218, 26596, 27789, 28190, 31746, 29579],
+};
+
+function netOf(asset: CftcAsset) { return asset.long - asset.short; }
+function share(long: number, short: number) { return Math.round((long / (long + short)) * 100); }
+
+function format(value: number, signed = false) {
   const absolute = Math.abs(value);
-  const prefix = value < 0 ? "−" : signed && value > 0 ? "+" : "";
+  const prefix = value < 0 ? "-" : signed && value > 0 ? "+" : "";
   if (absolute >= 1_000_000) return `${prefix}${(absolute / 1_000_000).toFixed(1)}M`;
   if (absolute >= 1_000) return `${prefix}${(absolute / 1_000).toFixed(1)}K`;
-  return `${prefix}${absolute.toLocaleString("zh-CN")}`;
+  return `${prefix}${absolute.toLocaleString("en-US")}`;
 }
 
-function sourceFor(asset: CftcAsset) {
-  return asset.reportType === "TFF" ? financialSource : physicalSource;
-}
+function sourceFor(asset: CftcAsset) { return asset.reportType === "TFF" ? financialSource : physicalSource; }
+function traderName(name: string) { return traderLabels[name] ?? name; }
+function screenName(asset: CftcAsset) { return displayNames[asset.symbol] ?? asset.name; }
+function screenSymbol(asset: CftcAsset) { return displaySymbols[asset.symbol] ?? asset.symbol; }
 
-function DirectionBar({ asset }: { asset: CftcAsset }) {
-  const share = longShare(asset);
+function BrandHeader() {
   return (
-    <div className="position-direction">
-      <div className="direction-copy">
-        <span>多头 {share}%</span>
-        <span>空头 {100 - share}%</span>
+    <header className="cot-header">
+      <div className="cot-brand">
+        <span className="brand-chart"><i /><i /><i /></span>
+        <div><strong>CFTC COT</strong><span>持仓分析</span></div>
       </div>
-      <div className="direction-rail" role="img" aria-label={`多头 ${share}%，空头 ${100 - share}%`}>
-        <i className="long-segment" style={{ width: `${share}%` }} />
-        <i className="short-segment" style={{ width: `${100 - share}%` }} />
-      </div>
-    </div>
+      <span className="official-status"><i /> 官方数据</span>
+    </header>
   );
 }
 
-function TierSwitch({ tier, onChange }: { tier: Tier; onChange: (tier: Tier) => void }) {
+function BottomNav({ screen, onHome, onPro }: { screen: Screen; onHome: () => void; onPro: () => void }) {
   return (
-    <div className="tier-switch" aria-label="会员视图切换">
-      <button className={tier === "free" ? "active" : ""} onClick={() => onChange("free")}>免费</button>
-      <button className={tier === "diamond" ? "active diamond" : ""} onClick={() => onChange("diamond")}>
-        <span>◆</span> 钻石
+    <nav className="cot-bottom-nav" aria-label="主导航">
+      <button className={screen !== "pro" ? "active" : ""} onClick={onHome}>
+        <span className="home-icon">⌂</span><small>品种</small>
       </button>
-    </div>
-  );
-}
-
-function MarketRow({ asset, onOpen }: { asset: CftcAsset; onOpen: () => void }) {
-  const net = netOf(asset);
-  return (
-    <button className="market-row" onClick={onOpen} aria-label={`查看${asset.name}持仓详情`}>
-      <span className={`asset-token token-${asset.group}`}>{asset.symbol}</span>
-      <span className="market-identity">
-        <strong>{asset.name}</strong>
-        <small>{asset.coreTrader} · {asset.reportType}</small>
-      </span>
-      <span className="market-position">
-        <strong className={net >= 0 ? "positive" : "negative"}>{formatContracts(net, true)}</strong>
-        <small className={asset.weeklyDelta >= 0 ? "positive" : "negative"}>周变 {formatContracts(asset.weeklyDelta, true)}</small>
-      </span>
-      <span className="row-arrow">›</span>
-      <span className="mini-rail" aria-hidden="true">
-        <i className="long-segment" style={{ width: `${longShare(asset)}%` }} />
-        <i className="short-segment" style={{ width: `${100 - longShare(asset)}%` }} />
-      </span>
-    </button>
-  );
-}
-
-function HistoryCard({ asset }: { asset: CftcAsset }) {
-  const [period, setPeriod] = useState<13 | 26>(13);
-  if (!asset.history) {
-    return (
-      <section className="content-card unavailable-card">
-        <div className="section-title compact">
-          <div><small>HISTORY</small><h2>历史净仓</h2></div>
-          <span className="free-tag">FREE</span>
-        </div>
-        <div className="empty-chart">
-          <i>i</i>
-          <p>正式版将接入该品种完整历史序列。Demo 不用模拟数据补齐曲线。</p>
-        </div>
-      </section>
-    );
-  }
-
-  const points = asset.history.slice(0, period).reverse();
-  const max = Math.max(...points.map((point) => Math.abs(point.net)));
-  return (
-    <section className="content-card history-card">
-      <div className="section-title compact">
-        <div><small>HISTORY</small><h2>{asset.coreTrader}净仓</h2></div>
-        <div className="period-toggle">
-          {([13, 26] as const).map((item) => (
-            <button key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)}>{item}周</button>
-          ))}
-        </div>
-      </div>
-      <div className="mobile-chart" role="img" aria-label={`${asset.name}${period}周净仓变化`}>
-        <div className="chart-zero" />
-        {points.map((point) => {
-          const height = Math.max(4, (Math.abs(point.net) / max) * 43);
-          return (
-            <span className="chart-column" key={point.date} title={`${point.date} ${formatContracts(point.net, true)}`}>
-              <i className={point.net >= 0 ? "up" : "down"} style={{ height: `${height}%` }} />
-            </span>
-          );
-        })}
-      </div>
-      <div className="chart-foot">
-        <span>{points[0].date}</span>
-        <span><i className="legend-dot" /> 净仓 · 合约</span>
-        <span>{points[points.length - 1].date}</span>
-      </div>
-    </section>
-  );
-}
-
-function TraderTable({ asset }: { asset: CftcAsset }) {
-  const rows = asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }];
-  return (
-    <section className="content-card trader-card">
-      <div className="section-title compact">
-        <div><small>TRADERS</small><h2>交易者分类</h2></div>
-        <span className="free-tag">FREE</span>
-      </div>
-      <div className="trader-table">
-        <div className="trader-row table-head"><span>类别</span><span>净仓</span><span>周变</span></div>
-        {rows.map((row) => {
-          const net = row.long - row.short;
-          return (
-            <div className="trader-row" key={row.name}>
-              <span><strong>{row.name}</strong><small>多 {formatContracts(row.long)} · 空 {formatContracts(row.short)}</small></span>
-              <span className={net >= 0 ? "positive" : "negative"}>{formatContracts(net, true)}</span>
-              <span className={row.netChange >= 0 ? "positive" : "negative"}>{formatContracts(row.netChange, true)}</span>
-            </div>
-          );
-        })}
-      </div>
-      {!asset.breakdown && <p className="coverage-copy">当前 Demo 展示已核验的核心交易者数据，完整分类明细将在正式数据链路展开。</p>}
-    </section>
-  );
-}
-
-function DiamondBlock({ asset, tier, onUnlock }: { asset: CftcAsset; tier: Tier; onUnlock: () => void }) {
-  const net = netOf(asset);
-  const weeklyRank = [...assets].sort((a, b) => b.weeklyDelta - a.weeklyDelta).findIndex((item) => item.symbol === asset.symbol) + 1;
-  const strengthRank = [...assets]
-    .sort((a, b) => Math.abs(netOf(b)) / b.openInterest - Math.abs(netOf(a)) / a.openInterest)
-    .findIndex((item) => item.symbol === asset.symbol) + 1;
-  const percentile = asset.history
-    ? Math.round((asset.history.filter((point) => point.net <= net).length / asset.history.length) * 100)
-    : null;
-  const positionLabel = percentile !== null ? `${percentile}%` : `#${strengthRank}`;
-
-  return (
-    <section className={`diamond-card ${tier === "diamond" ? "unlocked" : "locked"}`}>
-      <div className="diamond-title">
-        <span className="diamond-gem">◆</span>
-        <div><small>DIAMOND VIEW</small><h2>这组持仓意味着什么？</h2></div>
-        {tier === "free" && <span className="lock-chip">已锁定</span>}
-      </div>
-      <div className="evidence-list">
-        <article>
-          <span>位置</span>
-          <strong>{positionLabel}</strong>
-          <p>{percentile !== null ? `${asset.coreTrader}净仓位于近 26 周第 ${percentile} 百分位。` : `净仓强度在 15 个跟踪品种中排第 ${strengthRank}。`}</p>
-        </article>
-        <article>
-          <span>动量</span>
-          <strong className={asset.weeklyDelta >= 0 ? "positive" : "negative"}>{formatContracts(asset.weeklyDelta, true)}</strong>
-          <p>本周净仓变化由强到弱排名 {weeklyRank}/15。</p>
-        </article>
-      </div>
-      <div className="watch-note">
-        <span>下周观察</span>
-        <strong>{asset.name}的{net >= 0 ? "净多" : "净空"}结构{asset.weeklyDelta >= 0 ? "继续增强" : "正在降温"}</strong>
-        <p>继续观察净仓方向是否延续，以及总持仓能否提供确认。仓位不是价格，也不是交易指令。</p>
-      </div>
-      {tier === "free" && (
-        <div className="diamond-cover">
-          <span>◆</span>
-          <strong>解锁完整证据链</strong>
-          <p>历史分位 · 跨品种排名 · 分歧 · 观察清单</p>
-          <button onClick={onUnlock}>体验钻石视图</button>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function BottomNav({ active, onHome, onDiamond }: { active: "home" | "detail" | "diamond"; onHome: () => void; onDiamond: () => void }) {
-  return (
-    <nav className="bottom-nav" aria-label="底部导航">
-      <button className={active === "home" ? "active" : ""} onClick={onHome}><i className="nav-dot">⌂</i><span>持仓</span></button>
-      <button className={active === "detail" ? "active" : ""}><i>⌁</i><span>趋势</span></button>
-      <button className={active === "diamond" ? "active diamond" : ""} onClick={onDiamond}><i>◆</i><span>钻石</span></button>
-      <button onClick={() => document.getElementById("method-sheet")?.scrollIntoView({ behavior: "smooth" })}><i>···</i><span>更多</span></button>
+      <button className={screen === "pro" ? "active" : ""} onClick={onPro}>
+        <span className="pro-icon">✧</span><small>专业版</small>
+      </button>
     </nav>
   );
 }
 
-function DetailView({ asset, tier, onTier, onBack }: { asset: CftcAsset; tier: Tier; onTier: (tier: Tier) => void; onBack: () => void }) {
+function AssetCard({ asset, onOpen }: { asset: CftcAsset; onOpen: () => void }) {
   const net = netOf(asset);
+  const longPct = share(asset.long, asset.short);
   return (
-    <div className="detail-view">
-      <header className="mobile-header detail-header">
-        <button className="back-button" onClick={onBack} aria-label="返回品种列表">‹</button>
-        <div className="detail-header-title"><strong>{asset.name}</strong><small>{asset.symbol} · {asset.reportType}</small></div>
-        <a className="source-button" href={sourceFor(asset)} target="_blank" rel="noreferrer">原表 ↗</a>
-      </header>
+    <button className="cot-asset-card" onClick={onOpen} aria-label={`查看${screenName(asset)}完整分析`}>
+      <div className="asset-card-heading">
+        <div><strong>{screenName(asset)}</strong><span>{screenSymbol(asset)}</span></div>
+        <small>{reportMeta.asOf}<b>›</b></small>
+      </div>
+      <div className="asset-card-sub"><strong>{asset.symbol === "DXY" || asset.reportType === "TFF" ? "杠杆资金" : "管理基金"}</strong><span>OI {format(asset.openInterest)}手</span></div>
+      <div className="summary-metrics">
+        <div className="metric-long"><span>多头</span><strong>{format(asset.long)}</strong></div>
+        <div className="metric-short"><span>空头</span><strong>{format(asset.short)}</strong></div>
+        <div className={net >= 0 ? "metric-long" : "metric-short"}><span>净持仓</span><strong>{format(net, true)}</strong></div>
+      </div>
+      <div className="summary-bar"><i className="bar-long" style={{ width: `${longPct}%` }} /><i className="bar-short" style={{ width: `${100 - longPct}%` }} /></div>
+      <div className="summary-labels"><span>多 {longPct}%</span><span>空 {100 - longPct}%</span></div>
+      <div className="weekly-line">较上周净持仓 <strong className={asset.weeklyDelta >= 0 ? "red" : "green"}>{format(asset.weeklyDelta, true)}</strong></div>
+    </button>
+  );
+}
 
-      <div className="detail-content">
-        <section className="position-hero">
-          <div className="position-hero-top">
-            <span className="large-token">{asset.symbol}</span>
-            <div><small>{asset.coreTrader}净仓</small><strong className={net >= 0 ? "positive" : "negative"}>{formatContracts(net, true)}</strong></div>
-            <span className={`week-chip ${asset.weeklyDelta >= 0 ? "up" : "down"}`}>本周 {formatContracts(asset.weeklyDelta, true)}</span>
-          </div>
-          <DirectionBar asset={asset} />
-          <div className="position-stats">
-            <span><small>多头</small><strong>{formatContracts(asset.long)}</strong></span>
-            <span><small>空头</small><strong>{formatContracts(asset.short)}</strong></span>
-            <span><small>总持仓</small><strong>{formatContracts(asset.openInterest)}</strong></span>
+function HomeView({ filter, setFilter, onOpen }: { filter: Filter; setFilter: (filter: Filter) => void; onOpen: (asset: CftcAsset) => void }) {
+  const visibleGroups = groups.filter((group) => filter === "全部" || group.key === filter);
+  return (
+    <div className="cot-scroll home-scroll">
+      <section className="home-intro">
+        <h1>CFTC 持仓报告</h1>
+        <p>官方数据 · 每周五更新 · 点击品种查看完整分析</p>
+      </section>
+      <div className="filter-strip" aria-label="品种分类">
+        {filters.map((item) => <button key={item.key} className={filter === item.key ? "active" : ""} onClick={() => setFilter(item.key)}>{item.icon && <span>{item.icon}</span>}{item.key}</button>)}
+      </div>
+      {visibleGroups.map((group) => (
+        <section className="market-group" key={group.key}>
+          <div className="group-title"><span>{group.icon}</span><h2>{group.title}</h2><p>{group.subtitle}</p></div>
+          <div className="asset-stack">
+            {group.symbols.map((symbol) => {
+              const asset = assets.find((item) => item.symbol === symbol);
+              return asset ? <AssetCard key={symbol} asset={asset} onOpen={() => onOpen(asset)} /> : null;
+            })}
           </div>
         </section>
+      ))}
+      <div className="method-links">
+        <a href={methodSource} target="_blank" rel="noreferrer">CFTC 原始说明</a>
+        <a href={physicalSource} target="_blank" rel="noreferrer">Disaggregated 原表</a>
+        <a href={financialSource} target="_blank" rel="noreferrer">TFF 原表</a>
+      </div>
+    </div>
+  );
+}
 
-        <div className="free-banner"><span>FREE</span><p>公开数据完整开放，不需要会员</p></div>
-        <HistoryCard asset={asset} />
-        <TraderTable asset={asset} />
-        <DiamondBlock asset={asset} tier={tier} onUnlock={() => onTier("diamond")} />
+function TraderPositionRow({ row, index }: { row: TraderRow; index: number }) {
+  const net = row.long - row.short;
+  const longPct = share(row.long, row.short);
+  return (
+    <div className="trader-position-row">
+      <div className="trader-row-heading"><strong><i style={{ background: traderDots[index % traderDots.length] }} />{traderName(row.name)}</strong><span className={net >= 0 ? "red" : "green"}>净 {format(net, true)}</span></div>
+      <div className="trader-numbers"><span>多 <b className="red">{format(row.long)}</b></span><span>空 <b className="green">{format(row.short)}</b></span></div>
+      <div className="detail-bar"><i className="bar-long" style={{ width: `${longPct}%` }} /><i className="bar-short" style={{ width: `${100 - longPct}%` }} /></div>
+      <div className="detail-percent"><span>{longPct}%</span><span>{100 - longPct}%</span></div>
+    </div>
+  );
+}
 
-        <section className="method-sheet" id="method-sheet">
-          <h2>数据口径</h2>
-          <p>每周二持仓，通常周五发布；页面多空占比 = 多头 ÷（多头 + 空头），不含 spreading。</p>
-          <div>
-            <a href={physicalSource} target="_blank" rel="noreferrer">Disaggregated 原表 ↗</a>
-            <a href={financialSource} target="_blank" rel="noreferrer">TFF 原表 ↗</a>
-            <a href={methodologySource} target="_blank" rel="noreferrer">CFTC 原始说明 ↗</a>
+function WeeklyChangeRow({ row, asset, index }: { row: TraderRow; asset: CftcAsset; index: number }) {
+  const map = asset.symbol === "XAU" ? goldChanges : asset.symbol === "DXY" ? dxyChanges : {};
+  const changes = map[row.name] ?? { long: 0, short: 0 };
+  return (
+    <div className="change-row">
+      <div className="change-heading"><strong><i style={{ background: traderDots[index % traderDots.length] }} />{traderName(row.name)}</strong><span className={row.netChange >= 0 ? "red" : "green"}>⌁ 净 {format(row.netChange, true)}</span></div>
+      <div className="change-grid">
+        <div><span>多头变化</span><strong className={changes.long >= 0 ? "red" : "green"}>⌁ {format(changes.long, true)}</strong><small>当前 {format(row.long)}</small></div>
+        <div><span>空头变化</span><strong className={changes.short >= 0 ? "red" : "green"}>⌁ {format(changes.short, true)}</strong><small>当前 {format(row.short)}</small></div>
+      </div>
+    </div>
+  );
+}
+
+function LineCanvas({ series, colors }: { series: number[][]; colors: string[] }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.scale(ratio, ratio);
+    const width = rect.width;
+    const height = rect.height;
+    const pad = { left: 38, right: 10, top: 12, bottom: 24 };
+    const all = series.flat();
+    const absoluteMax = Math.max(...all.map((value) => Math.abs(value)));
+    const step = absoluteMax > 100000 ? 125000 : absoluteMax > 40000 ? 25000 : absoluteMax > 10000 ? 12500 : 5000;
+    const bound = Math.max(step, Math.ceil(absoluteMax / step) * step);
+    const max = bound;
+    const min = -bound;
+    const range = max - min;
+    context.strokeStyle = "#1b252a";
+    context.lineWidth = 1;
+    context.setLineDash([3, 3]);
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + ((height - pad.top - pad.bottom) / 4) * i;
+      context.beginPath(); context.moveTo(pad.left, y); context.lineTo(width - pad.right, y); context.stroke();
+      const axisValue = max - (range / 4) * i;
+      context.fillStyle = "#68757d";
+      context.font = "9px ui-monospace";
+      context.fillText(axisValue === 0 ? "0" : `${axisValue / 1000}K`, 3, y + 3);
+    }
+    for (let i = 0; i <= 3; i++) {
+      const x = pad.left + ((width - pad.left - pad.right) / 3) * i;
+      context.beginPath(); context.moveTo(x, pad.top); context.lineTo(x, height - pad.bottom); context.stroke();
+    }
+    context.setLineDash([]);
+    series.forEach((values, index) => {
+      context.strokeStyle = colors[index];
+      context.lineWidth = 2;
+      context.beginPath();
+      values.forEach((value, pointIndex) => {
+        const x = pad.left + (pointIndex / Math.max(1, values.length - 1)) * (width - pad.left - pad.right);
+        const y = pad.top + ((max - value) / range) * (height - pad.top - pad.bottom);
+        if (pointIndex === 0) context.moveTo(x, y); else context.lineTo(x, y);
+      });
+      context.stroke();
+    });
+    context.fillStyle = "#68757d";
+    context.font = "9px ui-monospace";
+    ["01/20", "03/31", "05/05", "07/14"].forEach((label, index) => {
+      const x = pad.left + (index / 3) * (width - pad.left - pad.right);
+      context.fillText(label, x - (index === 3 ? 26 : 10), height - 5);
+    });
+  }, [series, colors]);
+  return <canvas className="line-canvas" ref={ref} />;
+}
+
+function HistoryPanel({ asset }: { asset: CftcAsset }) {
+  const [weeks, setWeeks] = useState<13 | 26 | 52>(26);
+  const history = asset.history ?? [];
+  const count = Math.min(weeks, history.length);
+  const visible = history.slice(0, count).reverse();
+  const oi = (oiHistory[asset.symbol] ?? Array(history.length).fill(asset.openInterest)).slice(0, count).reverse();
+  return (
+    <div className="tab-panel">
+      <div className="range-row"><span>时间范围:</span>{([13, 26, 52] as const).map((item) => <button key={item} className={weeks === item ? "active" : ""} onClick={() => setWeeks(item)}>{item}周</button>)}</div>
+      <section className="detail-card chart-card">
+        <h3>净持仓历史趋势</h3><p>近{count}周各类交易者净持仓变化</p>
+        {history.length ? <LineCanvas series={[visible.map((p) => p.net), visible.map((p) => p.counterpartNet), visible.map((p) => p.thirdNet ?? 0)]} colors={["#f5a73b", asset.reportType === "TFF" ? "#8b5cf6" : "#5577f3", asset.reportType === "TFF" ? "#5577f3" : "#8b5cf6"]} /> : <div className="no-history">该品种历史序列将在正式版接入</div>}
+        <div className="chart-legend"><span className="orange">{asset.reportType === "TFF" ? "杠杆资金" : "管理基金"}</span><span className={asset.reportType === "TFF" ? "purple" : "blue"}>{asset.reportType === "TFF" ? "资产管理" : "生产商/商业"}</span><span className={asset.reportType === "TFF" ? "blue" : "purple"}>{asset.reportType === "TFF" ? "交易商" : "掉期交易商"}</span></div>
+      </section>
+      {history.length > 0 && (
+        <section className="detail-card data-card">
+          <h3>近期数据明细</h3>
+          <div className="history-table">
+            <div className="history-row history-head"><span>日期</span><span>总持仓</span><span>{asset.coreTrader}净</span><span>{asset.counterpartLabel ?? "对手净"}</span></div>
+            {[...history].slice(0, count).map((point, index) => (
+              <div className="history-row" key={point.date}>
+                <span className={index === 0 ? "latest-date" : ""}>2026-{point.date}{index === 0 && <small>最新</small>}</span>
+                <span>{format((oiHistory[asset.symbol] ?? [asset.openInterest])[index] ?? asset.openInterest)}</span>
+                <span className={point.net >= 0 ? "red" : "green"}>{format(point.net, true)}</span>
+                <span className={point.counterpartNet >= 0 ? "red" : "green"}>{format(point.counterpartNet, true)}</span>
+              </div>
+            ))}
           </div>
-          <small>持仓截至 {reportMeta.asOf} · 发布于 {reportMeta.published} · {reportMeta.scope}</small>
         </section>
+      )}
+      {history.length > 0 && <section className="detail-card chart-card"><h3>总持仓趋势</h3><p>近{count}周总持仓量变化</p><LineCanvas series={[oi]} colors={["#13b8b1"]} /></section>}
+    </div>
+  );
+}
+
+function ChartPanel({ asset }: { asset: CftcAsset }) {
+  const rows = asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }];
+  return (
+    <div className="tab-panel">
+      <section className="detail-card chart-card"><h3>交易者净持仓对比</h3><p>当前各类交易者净持仓</p><div className="horizontal-bars">{rows.map((row, index) => { const net = row.long - row.short; const max = Math.max(...rows.map((item) => Math.abs(item.long - item.short))); return <div key={row.name}><span>{traderName(row.name)}</span><i style={{ width: `${Math.max(8, Math.abs(net) / max * 100)}%`, background: traderDots[index] }} /><b className={net >= 0 ? "red" : "green"}>{format(net, true)}</b></div>; })}</div></section>
+      <section className="detail-card explainer-card"><h3>图表说明</h3><p>红色代表多头，绿色代表空头；净持仓为多头减去空头。多头 ÷（多头 + 空头）为方向持仓比例，不含 spreading。</p></section>
+    </div>
+  );
+}
+
+function DepthPanel() {
+  return (
+    <div className="tab-panel">
+      <section className="pro-gate-card">
+        <div className="pro-gate-head"><span>⌁</span><div><h3>专业版内容 <b>PRO</b></h3><p>以下内容为付费会员专属，提供更深层的持仓结构分析</p></div></div>
+        <div className="pro-space" />
+        <div className="pro-features">
+          <div><i>▥</i><span><strong>持仓结构深度解读</strong><small>投机者与商业用户的持仓逻辑、历史背景分析</small></span></div>
+          <div><i>↗</i><span><strong>历史极值对比</strong><small>当前持仓与历史极端点的统计对比，了解历史规律</small></span></div>
+          <div><i>◫</i><span><strong>每周持仓周报</strong><small>跨品种持仓变化摘要，快速掌握本周变化</small></span></div>
+        </div>
+        <button>登录后升级钻石VIP</button>
+        <p className="risk-copy">所有分析均基于 CFTC 官方公开数据，仅描述持仓结构事实，不构成投资建议</p>
+      </section>
+    </div>
+  );
+}
+
+function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: DetailTab; setTab: (tab: DetailTab) => void; onBack: () => void }) {
+  const rows = asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }];
+  const totalChange = asset.symbol === "XAU" ? 11913 : asset.symbol === "DXY" ? -91 : 0;
+  return (
+    <div className="cot-scroll detail-scroll">
+      <section className="detail-titlebar">
+        <button className="back" onClick={onBack} aria-label="返回">‹</button>
+        <div><h1>{screenName(asset)} <span>{screenSymbol(asset)}</span></h1><button className="date-button">2026/07/14 <small>最新</small>⌄</button></div>
+        <button className="refresh" aria-label="刷新">↻</button>
+      </section>
+
+      <section className="detail-card positions-card">
+        <h2>各类交易者持仓</h2><p>总持仓 {format(asset.openInterest)}手 · <span className="red">红=多头</span> / <span className="green">绿=空头</span></p>
+        {rows.map((row, index) => <TraderPositionRow row={row} index={index} key={row.name} />)}
+      </section>
+
+      <section className="detail-card changes-card">
+        <h2>本周持仓变化</h2>
+        <div className="total-change"><span><i />总持仓变化</span><strong className={totalChange >= 0 ? "red" : "green"}>⌁ {format(totalChange, true)}</strong></div>
+        {rows.map((row, index) => <WeeklyChangeRow row={row} asset={asset} index={index} key={row.name} />)}
+      </section>
+
+      <div className="analysis-tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "history"} className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>历史趋势</button>
+        <button role="tab" aria-selected={tab === "chart"} className={tab === "chart" ? "active" : ""} onClick={() => setTab("chart")}>图表</button>
+        <button role="tab" aria-selected={tab === "depth"} className={tab === "depth" ? "active" : ""} onClick={() => setTab("depth")}><span>▱</span> 深度解读</button>
       </div>
 
-      <BottomNav active="detail" onHome={onBack} onDiamond={() => onTier("diamond")} />
+      {tab === "history" && <HistoryPanel asset={asset} />}
+      {tab === "chart" && <ChartPanel asset={asset} />}
+      {tab === "depth" && <DepthPanel />}
+
+      <section className="detail-card instrument-note"><h3>品种说明</h3><p>{screenName(asset)}期货 CFTC 持仓分类报告，展示主要交易者类别的方向和变化。</p><div><span>合约单位: 手</span><span>{asset.reportType === "TFF" ? "金融期货报告" : "分类报告"}</span></div><a href={sourceFor(asset)} target="_blank" rel="noreferrer">核验官方原表 ↗</a></section>
+    </div>
+  );
+}
+
+function ProView({ onAsset }: { onAsset: (asset: CftcAsset) => void }) {
+  return (
+    <div className="cot-scroll pro-page">
+      <div className="pro-hero"><span>✧</span><h1>钻石VIP专业版</h1><p>不锁公开数据，只提供更深的持仓结构判断。</p></div>
+      <section className="pro-overview-card"><small>本周跨品种摘要</small><h2>三个值得关注的持仓变化</h2><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "XAU") ?? assets[0])}><span>01</span><div><strong>黄金净多处于高位</strong><small>管理基金近 26 周第 96 百分位</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "NG") ?? assets[0])}><span>02</span><div><strong>天然气净仓快速降温</strong><small>本周变化 -45.4K</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "DXY") ?? assets[0])}><span>03</span><div><strong>美元机构持仓分歧</strong><small>资管净多、杠杆基金净空</small></div><b>›</b></button></section>
+      <DepthPanel />
     </div>
   );
 }
 
 export default function Home() {
-  const [tier, setTier] = useState<Tier>("free");
-  const [group, setGroup] = useState<"全部" | MarketGroup>("全部");
-  const [query, setQuery] = useState("");
-  const [selectedSymbol, setSelectedSymbol] = useState("XAU");
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [screen, setScreen] = useState<Screen>("home");
+  const [filter, setFilter] = useState<Filter>("全部");
+  const [symbol, setSymbol] = useState("XAU");
+  const [tab, setTab] = useState<DetailTab>("history");
+  const selected = useMemo(() => assets.find((asset) => asset.symbol === symbol) ?? assets[0], [symbol]);
 
-  const filteredAssets = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return assets.filter((asset) => {
-      const matchesGroup = group === "全部" || asset.group === group;
-      const matchesQuery = !normalized || `${asset.name} ${asset.symbol}`.toLowerCase().includes(normalized);
-      return matchesGroup && matchesQuery;
-    });
-  }, [group, query]);
-
-  const selectedAsset = assets.find((asset) => asset.symbol === selectedSymbol) ?? assets[0];
-
-  function openAsset(asset: CftcAsset) {
-    setSelectedSymbol(asset.symbol);
-    setDetailOpen(true);
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }
-
-  if (detailOpen) {
-    return (
-      <main className="app-shell">
-        <DetailView asset={selectedAsset} tier={tier} onTier={setTier} onBack={() => { setDetailOpen(false); window.scrollTo({ top: 0 }); }} />
-      </main>
-    );
+  function openAsset(asset: CftcAsset, openTab: DetailTab = "history") {
+    setSymbol(asset.symbol); setTab(openTab); setScreen("detail");
+    window.scrollTo(0, 0);
   }
 
   return (
-    <main className="app-shell">
-      <header className="mobile-header">
-        <a className="mobile-brand" href="#top" aria-label="金十 CFTC 首页"><span>10</span><strong>金十 CFTC</strong></a>
-        <TierSwitch tier={tier} onChange={setTier} />
-      </header>
-
-      <div className="home-content" id="top">
-        <section className="report-hero">
-          <div className="report-meta"><span><i /> 官方周报已更新</span><small>{reportMeta.published}</small></div>
-          <h1>本周持仓<br /><em>风向仪</em></h1>
-          <p>公开数据免费。钻石会员看分位、异动与资金分歧。</p>
-          <div className="hero-facts">
-            <span><small>持仓日期</small><strong>07/14</strong></span>
-            <span><small>跟踪品种</small><strong>15</strong></span>
-            <span><small>报告口径</small><strong>期货</strong></span>
-          </div>
-        </section>
-
-        <section className="pulse-mobile">
-          <div className="section-title">
-            <div><small>WEEKLY PULSE</small><h2>本周资金脉冲</h2></div>
-            <span>净仓周变</span>
-          </div>
-          <div className="pulse-scroll">
-            <article className="pulse-tile strongest"><span>增强最快</span><strong>英镑</strong><b>+10.6K</b><small>杠杆基金</small></article>
-            <article className="pulse-tile"><span>净多高位</span><strong>黄金</strong><b>+120.8K</b><small>管理基金</small></article>
-            <article className="pulse-tile weakest"><span>降温最快</span><strong>天然气</strong><b>−45.4K</b><small>管理基金</small></article>
-          </div>
-        </section>
-
-        <section className={`diamond-preview ${tier === "diamond" ? "active" : ""}`}>
-          <div className="preview-heading"><span>◆</span><div><small>DIAMOND WEEKLY</small><strong>{tier === "diamond" ? "跨市场资金简报" : "免费数据之上的判断层"}</strong></div></div>
-          {tier === "diamond" ? (
-            <div className="preview-insights">
-              <p><span>01</span> 英镑净仓增幅居首，黄金与铜随后。</p>
-              <p><span>02</span> 天然气净仓大幅转弱，纳指、欧元同步降温。</p>
-              <p><span>03</span> 美元资管净多处于 26 周高位，杠杆基金仍净空。</p>
-            </div>
-          ) : (
-            <div className="preview-locked"><p>历史分位 · 异动排名 · 资金分歧</p><button onClick={() => setTier("diamond")}>体验钻石视图</button></div>
-          )}
-        </section>
-
-        <section className="market-list-section">
-          <div className="section-title market-title">
-            <div><small>MARKETS</small><h2>全部品种</h2></div>
-            <span>{filteredAssets.length} 个结果</span>
-          </div>
-          <label className="mobile-search">
-            <span>⌕</span>
-            <input aria-label="搜索品种" placeholder="搜索品种或代码" value={query} onChange={(event) => setQuery(event.target.value)} />
-          </label>
-          <div className="mobile-filters" aria-label="品种分类">
-            {groupOptions.map((item) => (
-              <button key={item} className={group === item ? "active" : ""} onClick={() => setGroup(item)}>{item}</button>
-            ))}
-          </div>
-          <div className="market-list">
-            {filteredAssets.map((asset) => <MarketRow key={asset.symbol} asset={asset} onOpen={() => openAsset(asset)} />)}
-          </div>
-          {filteredAssets.length === 0 && <div className="empty-results"><strong>没有匹配结果</strong><button onClick={() => { setQuery(""); setGroup("全部"); }}>清除筛选</button></div>}
-        </section>
-
-        <section className="method-sheet home-method" id="method-sheet">
-          <h2>公开、透明、可核验</h2>
-          <p>COT 是每周仓位快照，不是实时成交，也不是买卖建议。</p>
-          <a href={methodologySource} target="_blank" rel="noreferrer">查看 CFTC 原始说明 ↗</a>
-        </section>
-      </div>
-
-      <BottomNav active={tier === "diamond" ? "diamond" : "home"} onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })} onDiamond={() => setTier("diamond")} />
+    <main className="cot-app">
+      <BrandHeader />
+      {screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} />}
+      {screen === "detail" && <DetailView asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} />}
+      {screen === "pro" && <ProView onAsset={(asset) => openAsset(asset, "depth")} />}
+      <BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => setScreen("pro")} />
     </main>
   );
 }
-
