@@ -291,7 +291,51 @@ function ChartPanel({ asset }: { asset: CftcAsset }) {
   );
 }
 
-function DepthPanel() {
+function ProAnalysisDemo({ asset, onClose }: { asset: CftcAsset; onClose: () => void }) {
+  const net = netOf(asset);
+  const longPct = share(asset.long, asset.short);
+  const history = asset.history ?? [];
+  const percentile = history.length
+    ? Math.round((history.filter((point) => point.net <= net).length / history.length) * 100)
+    : null;
+  const isGold = asset.symbol === "XAU";
+  const isDxy = asset.symbol === "DXY";
+  const headline = isGold ? "偏多，但高位开始降温" : isDxy ? "机构分歧仍然显著" : net >= 0 ? "投机资金维持净多" : "投机资金维持净空";
+  const summary = isGold
+    ? "管理基金净多仍处于近 26 周高位，但最近数周没有继续扩张。结构偏多，追涨性价比正在下降。"
+    : isDxy
+      ? "资管机构保持净多，杠杆资金仍为净空；两类机构方向相反，美元处于典型的持仓分歧阶段。"
+      : `${asset.coreTrader}当前净持仓为 ${format(net, true)} 手，本周变化 ${format(asset.weeklyDelta, true)} 手。`;
+  return (
+    <section className="pro-demo-card" aria-label={`${screenName(asset)}专业版演示`}>
+      <div className="pro-demo-heading">
+        <div><span>✧</span><div><small>专业版演示 · 公开预览</small><h2>{screenName(asset)}持仓深度解读</h2></div></div>
+        <button onClick={onClose} aria-label="收起专业版演示">×</button>
+      </div>
+      <div className="pro-signal-card">
+        <div><span>本周结论</span><b>演示</b></div>
+        <h3>{headline}</h3>
+        <p>{summary}</p>
+      </div>
+      <div className="pro-stat-grid">
+        <div><span>核心净持仓</span><strong className={net >= 0 ? "red" : "green"}>{format(net, true)}</strong><small>{asset.coreTrader}</small></div>
+        <div><span>多头占比</span><strong>{longPct}%</strong><small>方向持仓</small></div>
+        <div><span>历史分位</span><strong>{percentile === null ? "—" : `${percentile}%`}</strong><small>近 {history.length || 26} 周</small></div>
+      </div>
+      <div className="pro-insight-list">
+        <article><i>01</i><div><strong>结构判断</strong><p>{isGold ? `管理基金多头占方向持仓 ${longPct}%，净多 ${format(net)} 手，资金方向仍明显偏多。` : `${asset.coreTrader}多头占方向持仓 ${longPct}%，当前净仓为 ${format(net, true)} 手。`}</p></div></article>
+        <article><i>02</i><div><strong>变化解读</strong><p>{asset.weeklyDelta >= 0 ? `本周净持仓增加 ${format(asset.weeklyDelta)} 手，短线资金仍在回补多头。` : `本周净持仓减少 ${format(Math.abs(asset.weeklyDelta))} 手，短线资金出现降温。`}</p></div></article>
+        <article><i>03</i><div><strong>观察条件</strong><p>{isGold ? "若净多继续回落且跌破近四周低点，需警惕高位拥挤交易松动；若重新突破近期高点，则多头结构延续。" : "继续观察核心资金净仓是否连续两周同向变化，并结合总持仓确认趋势是否获得新增资金支持。"}</p></div></article>
+      </div>
+      <div className="pro-demo-footer"><span>示例用于展示钻石 VIP 的解读形态</span><button onClick={onClose}>收起演示</button></div>
+      <p className="risk-copy">基于 CFTC 官方公开数据的结构化解读，仅供研究参考，不构成投资建议</p>
+    </section>
+  );
+}
+
+function DepthPanel({ asset }: { asset: CftcAsset }) {
+  const [showDemo, setShowDemo] = useState(false);
+  if (showDemo) return <div className="tab-panel"><ProAnalysisDemo asset={asset} onClose={() => setShowDemo(false)} /></div>;
   return (
     <div className="tab-panel">
       <section className="pro-gate-card">
@@ -302,7 +346,7 @@ function DepthPanel() {
           <div><i>↗</i><span><strong>历史极值对比</strong><small>当前持仓与历史极端点的统计对比，了解历史规律</small></span></div>
           <div><i>◫</i><span><strong>每周持仓周报</strong><small>跨品种持仓变化摘要，快速掌握本周变化</small></span></div>
         </div>
-        <button>登录后升级钻石VIP</button>
+        <button onClick={() => setShowDemo(true)}>查看专业版演示</button>
         <p className="risk-copy">所有分析均基于 CFTC 官方公开数据，仅描述持仓结构事实，不构成投资建议</p>
       </section>
     </div>
@@ -339,7 +383,7 @@ function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: Det
 
       {tab === "history" && <HistoryPanel asset={asset} />}
       {tab === "chart" && <ChartPanel asset={asset} />}
-      {tab === "depth" && <DepthPanel />}
+      {tab === "depth" && <DepthPanel asset={asset} />}
 
       <section className="detail-card instrument-note"><h3>品种说明</h3><p>{screenName(asset)}期货 CFTC 持仓分类报告，展示主要交易者类别的方向和变化。</p><div><span>合约单位: 手</span><span>{asset.reportType === "TFF" ? "金融期货报告" : "分类报告"}</span></div><a href={sourceFor(asset)} target="_blank" rel="noreferrer">核验官方原表 ↗</a></section>
     </div>
@@ -347,11 +391,15 @@ function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: Det
 }
 
 function ProView({ onAsset }: { onAsset: (asset: CftcAsset) => void }) {
+  const [showDemo, setShowDemo] = useState(false);
+  const demoAsset = assets.find((asset) => asset.symbol === "XAU") ?? assets[0];
   return (
     <div className="cot-scroll pro-page">
-      <div className="pro-hero"><span>✧</span><h1>钻石VIP专业版</h1><p>不锁公开数据，只提供更深的持仓结构判断。</p></div>
-      <section className="pro-overview-card"><small>本周跨品种摘要</small><h2>三个值得关注的持仓变化</h2><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "XAU") ?? assets[0])}><span>01</span><div><strong>黄金净多处于高位</strong><small>管理基金近 26 周第 96 百分位</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "NG") ?? assets[0])}><span>02</span><div><strong>天然气净仓快速降温</strong><small>本周变化 -45.4K</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "DXY") ?? assets[0])}><span>03</span><div><strong>美元机构持仓分歧</strong><small>资管净多、杠杆基金净空</small></div><b>›</b></button></section>
-      <DepthPanel />
+      <div className="pro-hero"><span>✧</span><h1>钻石VIP专业版</h1><p>不锁公开数据，只提供更深的持仓结构判断。</p><button onClick={() => setShowDemo(true)}>查看专业版演示</button></div>
+      {showDemo ? <ProAnalysisDemo asset={demoAsset} onClose={() => setShowDemo(false)} /> : <>
+        <section className="pro-overview-card"><small>本周跨品种摘要</small><h2>三个值得关注的持仓变化</h2><button onClick={() => onAsset(demoAsset)}><span>01</span><div><strong>黄金净多处于高位</strong><small>管理基金近 26 周第 96 百分位</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "NG") ?? assets[0])}><span>02</span><div><strong>天然气净仓快速降温</strong><small>本周变化 -45.4K</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "DXY") ?? assets[0])}><span>03</span><div><strong>美元机构持仓分歧</strong><small>资管净多、杠杆基金净空</small></div><b>›</b></button></section>
+        <DepthPanel asset={demoAsset} />
+      </>}
     </div>
   );
 }

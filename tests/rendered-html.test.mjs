@@ -41,6 +41,8 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /Disaggregated 原表/);
   assert.match(page, /TFF 原表/);
   assert.match(page, /多头 ÷（多头 \+ 空头）/);
+  assert.match(page, /查看专业版演示/);
+  assert.match(page, /偏多，但高位开始降温/);
   assert.match(data, /openInterest: 383689/);
   assert.match(data, /long: 136905/);
   assert.match(data, /short: 16126/);
