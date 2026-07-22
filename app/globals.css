@@ -389,15 +389,24 @@ a { color: inherit; text-decoration: none; }
 .range-row button.active { border-color: rgba(8, 169, 168, 0.3); background: rgba(8, 169, 168, 0.15); color: var(--primary); }
 
 .chart-card > p { margin-bottom: 7px; }
+.chart-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.chart-card-heading > div:first-child { min-width: 0; }
+.chart-card-heading h3 { margin: 0; }
+.chart-card-heading p { margin: 4px 0 0; color: #929ea4; font-size: 11px; line-height: 1.5; }
+.chart-mode-switch { display: grid; width: 112px; height: 30px; flex: 0 0 auto; grid-template-columns: repeat(2, 1fr); padding: 3px; border: 1px solid #202b31; border-radius: 7px; background: #10171b; }
+.chart-mode-switch button { border: 0; border-radius: 5px; background: transparent; color: #8f9ba1; cursor: pointer; font-size: 10px; font-weight: 600; }
+.chart-mode-switch button.active { background: rgba(8, 169, 168, 0.18); color: #18bfbc; }
 .line-canvas { display: block; width: 100%; height: 255px; }
-.chart-legend { display: flex; gap: 13px; justify-content: center; margin-top: 4px; font-size: 11px; }
-.chart-legend span::before { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; content: ""; }
-.chart-legend .orange { color: var(--orange); }
-.chart-legend .orange::before { background: var(--orange); }
-.chart-legend .blue { color: var(--blue); }
-.chart-legend .blue::before { background: var(--blue); }
-.chart-legend .purple { color: var(--purple); }
-.chart-legend .purple::before { background: var(--purple); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 7px 13px; justify-content: center; margin-top: 6px; color: #b1bbc0; font-size: 11px; line-height: 18px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.chart-legend span i { display: block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; }
+.fan-canvas { display: block; width: 100%; height: 174px; margin-top: 4px; }
+.fan-legend { display: flex; margin-top: 2px; flex-direction: column; }
+.fan-legend > div { display: grid; min-height: 35px; grid-template-columns: minmax(0, 1fr) 35px 91px; align-items: center; gap: 7px; border-top: 1px solid #151e23; }
+.fan-legend span { display: inline-flex; min-width: 0; align-items: center; gap: 7px; color: #c7ced1; font-size: 12px; font-weight: 550; white-space: nowrap; }
+.fan-legend span i { display: block; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; }
+.fan-legend small { color: #87949a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; text-align: right; }
+.fan-legend strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; text-align: right; white-space: nowrap; }
 .no-history { display: grid; height: 180px; place-items: center; color: #89969c; font-size: 12px; }
 
 .data-card { padding: 0; overflow: hidden; }

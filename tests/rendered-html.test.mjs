@@ -52,6 +52,9 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /\/api\/cftc-history\?symbol=/);
   assert.match(page, /选择CFTC报告日期/);
   assert.match(page, /最近26期/);
+  assert.match(page, /当前净仓结构/);
+  assert.match(page, /净仓绝对值占比/);
+  assert.match(page, /PositionFanCanvas/);
   assert.doesNotMatch(page, /查看专业版演示|公开预览|收起演示/);
   assert.match(data, /openInterest: 383689/);
   assert.match(data, /long: 136905/);
@@ -59,6 +62,7 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(data, /symbol: "DXY"/);
   assert.match(data, /symbol: "BTC"/);
   assert.match(data, /thirdNet: -195639/);
+  assert.match(data, /categoryNets/);
   assert.match(historyRoute, /72hh-3qpy/);
   assert.match(historyRoute, /gpe5-46if/);
   assert.match(historyRoute, /cftc_contract_market_code/);
@@ -67,5 +71,7 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(css, /\.cot-asset-card/);
   assert.match(css, /\.analysis-tabs/);
   assert.match(css, /\.date-menu/);
+  assert.match(css, /\.fan-canvas/);
+  assert.match(css, /\.chart-mode-switch/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });

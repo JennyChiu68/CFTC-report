@@ -15,6 +15,7 @@ export type HistoryPoint = {
   net: number;
   counterpartNet: number;
   thirdNet?: number;
+  categoryNets?: Array<{ name: string; net: number }>;
   openInterest?: number;
   selected?: boolean;
 };

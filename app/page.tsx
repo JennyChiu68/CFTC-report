@@ -45,6 +45,8 @@ const traderLabels: Record<string, string> = {
 
 const traderDots = ["#f5ad3d", "#8b5cf6", "#55d39a", "#5d82ff", "#758091"];
 
+type PositionCategory = { name: string; net: number; color: string };
+
 const goldChanges: Record<string, { long: number; short: number }> = {
   "生产商 / 商业商": { long: 1558, short: -279 },
   "掉期交易商": { long: -268, short: -5925 },
@@ -195,7 +197,13 @@ function WeeklyChangeRow({ row, asset, index }: { row: TraderRow; asset: CftcAss
   );
 }
 
-function LineCanvas({ series, colors }: { series: number[][]; colors: string[] }) {
+function axisDateLabel(date: string) {
+  const parts = date.split("-");
+  if (parts.length === 3) return `${parts[1]}/${parts[2]}`;
+  return date.replace("-", "/");
+}
+
+function LineCanvas({ series, colors, dates }: { series: number[][]; colors: string[]; dates?: string[] }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
@@ -246,28 +254,131 @@ function LineCanvas({ series, colors }: { series: number[][]; colors: string[] }
     });
     context.fillStyle = "#68757d";
     context.font = "9px ui-monospace";
-    ["01/20", "03/31", "05/05", "07/14"].forEach((label, index) => {
+    const fallbackLabels = ["01/20", "03/31", "05/05", "07/14"];
+    const dateIndexes = dates?.length
+      ? [0, Math.round((dates.length - 1) / 3), Math.round(((dates.length - 1) * 2) / 3), dates.length - 1]
+      : [];
+    const labels = dateIndexes.length ? dateIndexes.map((index) => axisDateLabel(dates?.[index] ?? "")) : fallbackLabels;
+    labels.forEach((label, index) => {
       const x = pad.left + (index / 3) * (width - pad.left - pad.right);
       context.fillText(label, x - (index === 3 ? 26 : 10), height - 5);
     });
-  }, [series, colors]);
+  }, [series, colors, dates]);
   return <canvas className="line-canvas" ref={ref} />;
+}
+
+function PositionFanCanvas({ categories }: { categories: PositionCategory[] }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.scale(ratio, ratio);
+
+    const width = rect.width;
+    const height = rect.height;
+    const centerX = width / 2;
+    const centerY = height - 9;
+    const outerRadius = Math.min(width * 0.42, height - 18);
+    const innerRadius = outerRadius * 0.57;
+    const ringRadius = (outerRadius + innerRadius) / 2;
+    const ringWidth = outerRadius - innerRadius;
+    const total = categories.reduce((sum, category) => sum + Math.abs(category.net), 0) || 1;
+
+    context.strokeStyle = "#131d22";
+    context.lineWidth = ringWidth;
+    context.beginPath();
+    context.arc(centerX, centerY, ringRadius, Math.PI, Math.PI * 2);
+    context.stroke();
+
+    let angle = Math.PI;
+    categories.forEach((category) => {
+      const sweep = (Math.abs(category.net) / total) * Math.PI;
+      const gap = Math.min(0.018, sweep * 0.18);
+      if (sweep > gap) {
+        context.strokeStyle = category.color;
+        context.lineWidth = ringWidth;
+        context.lineCap = "butt";
+        context.beginPath();
+        context.arc(centerX, centerY, ringRadius, angle + gap / 2, angle + sweep - gap / 2);
+        context.stroke();
+      }
+      angle += sweep;
+    });
+
+    context.textAlign = "center";
+    context.fillStyle = "#f0f3f4";
+    context.font = '700 15px Inter, "PingFang SC", sans-serif';
+    context.fillText(`${categories.length}类资金`, centerX, centerY - innerRadius * 0.46);
+    context.fillStyle = "#89969c";
+    context.font = '11px Inter, "PingFang SC", sans-serif';
+    context.fillText("绝对净仓占比", centerX, centerY - innerRadius * 0.46 + 19);
+  }, [categories]);
+
+  const description = categories.map((category) => `${category.name}${formatNetPosition(category.net)}`).join("，");
+  return <canvas className="fan-canvas" ref={ref} role="img" aria-label={`${categories.length}类资金净仓绝对值占比：${description}`} />;
 }
 
 function HistoryPanel({ asset }: { asset: CftcAsset }) {
   const [weeks, setWeeks] = useState<13 | 26 | 52>(26);
+  const [visualMode, setVisualMode] = useState<"fan" | "line">("fan");
   const history = asset.history ?? [];
   const count = Math.min(weeks, history.length);
   const visible = history.slice(0, count).reverse();
   const staticOi = (oiHistory[asset.symbol] ?? Array(history.length).fill(asset.openInterest)).slice(0, count).reverse();
   const oi = visible.map((point, index) => point.openInterest ?? staticOi[index] ?? asset.openInterest);
+  const currentCategories: PositionCategory[] = (asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }])
+    .map((row, index) => ({ name: traderName(row.name), net: row.long - row.short, color: traderDots[index % traderDots.length] }));
+  const historicalCategoryNames = history.find((point) => point.categoryNets?.length)?.categoryNets?.map((category) => category.name)
+    ?? (asset.reportType === "TFF" ? ["杠杆基金", "资管机构", "交易商/中介"] : ["管理基金", "生产商/商业", "掉期交易商"]);
+  const historicalCategories = historicalCategoryNames.map((name) => {
+    const currentIndex = currentCategories.findIndex((category) => category.name === name);
+    return { name, color: traderDots[(currentIndex >= 0 ? currentIndex : historicalCategoryNames.indexOf(name)) % traderDots.length] };
+  });
+  const historicalSeries = historicalCategories.map((category, categoryIndex) => visible.map((point) => {
+    const fullCategory = point.categoryNets?.find((item) => item.name === category.name);
+    if (fullCategory) return fullCategory.net;
+    if (categoryIndex === 0) return point.net;
+    if (categoryIndex === 1) return point.counterpartNet;
+    if (categoryIndex === 2) return point.thirdNet ?? 0;
+    return 0;
+  }));
+  const fanTotal = currentCategories.reduce((sum, category) => sum + Math.abs(category.net), 0) || 1;
   return (
     <div className="tab-panel">
       <div className="range-row"><span>时间范围:</span>{([13, 26, 52] as const).map((item) => <button key={item} className={weeks === item ? "active" : ""} onClick={() => setWeeks(item)}>{item}周</button>)}</div>
       <section className="detail-card chart-card">
-        <h3>净持仓历史趋势</h3><p>近{count}周各类交易者净持仓变化</p>
-        {history.length ? <LineCanvas series={[visible.map((p) => p.net), visible.map((p) => p.counterpartNet), visible.map((p) => p.thirdNet ?? 0)]} colors={["#f5a73b", asset.reportType === "TFF" ? "#8b5cf6" : "#5577f3", asset.reportType === "TFF" ? "#5577f3" : "#8b5cf6"]} /> : <div className="no-history">该品种历史序列将在正式版接入</div>}
-        <div className="chart-legend"><span className="orange">{asset.reportType === "TFF" ? "杠杆资金" : "管理基金"}</span><span className={asset.reportType === "TFF" ? "purple" : "blue"}>{asset.reportType === "TFF" ? "资产管理" : "生产商/商业"}</span><span className={asset.reportType === "TFF" ? "blue" : "purple"}>{asset.reportType === "TFF" ? "交易商" : "掉期交易商"}</span></div>
+        <div className="chart-card-heading">
+          <div><h3>{visualMode === "fan" ? "当前净仓结构" : "净持仓历史趋势"}</h3><p>{visualMode === "fan" ? `按${currentCategories.length}类资金净仓绝对值占比` : `近${count}周${historicalCategories.length}类交易者净持仓变化`}</p></div>
+          <div className="chart-mode-switch" role="tablist" aria-label="净持仓图表视图">
+            <button type="button" role="tab" aria-selected={visualMode === "fan"} className={visualMode === "fan" ? "active" : ""} onClick={() => setVisualMode("fan")}>扇形</button>
+            <button type="button" role="tab" aria-selected={visualMode === "line"} className={visualMode === "line" ? "active" : ""} onClick={() => setVisualMode("line")}>趋势</button>
+          </div>
+        </div>
+        {visualMode === "fan" ? (
+          <>
+            <PositionFanCanvas categories={currentCategories} />
+            <div className="fan-legend">
+              {currentCategories.map((category) => (
+                <div key={category.name}>
+                  <span><i style={{ background: category.color }} />{category.name}</span>
+                  <small>{Math.round((Math.abs(category.net) / fanTotal) * 100)}%</small>
+                  <strong className={category.net >= 0 ? "red" : "green"}>{formatNetPosition(category.net)}</strong>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : history.length ? (
+          <>
+            <LineCanvas series={historicalSeries} colors={historicalCategories.map((category) => category.color)} dates={visible.map((point) => point.date)} />
+            <div className="chart-legend">{historicalCategories.map((category) => <span key={category.name}><i style={{ background: category.color }} />{category.name}</span>)}</div>
+          </>
+        ) : <div className="no-history">该品种历史序列将在正式版接入</div>}
       </section>
       {history.length > 0 && (
         <section className="detail-card data-card">
@@ -285,7 +396,7 @@ function HistoryPanel({ asset }: { asset: CftcAsset }) {
           </div>
         </section>
       )}
-      {history.length > 0 && <section className="detail-card chart-card"><h3>总持仓趋势</h3><p>近{count}周总持仓量变化</p><LineCanvas series={[oi]} colors={["#13b8b1"]} /></section>}
+      {history.length > 0 && <section className="detail-card chart-card"><h3>总持仓趋势</h3><p>近{count}周总持仓量变化</p><LineCanvas series={[oi]} colors={["#13b8b1"]} dates={visible.map((point) => point.date)} /></section>}
     </div>
   );
 }
@@ -461,6 +572,7 @@ function DetailView({ asset, tab, setTab, onBack, premium, onUnlock }: { asset: 
       net,
       counterpartNet: counterpart ? counterpart.long - counterpart.short : 0,
       thirdNet: third ? third.long - third.short : 0,
+      categoryNets: snapshot.breakdown.map((row) => ({ name: traderName(row.name), net: row.long - row.short })),
       openInterest: snapshot.openInterest,
       selected: index === 0 && selectedDate !== (snapshots[0]?.date ?? reportMeta.asOf),
     };
