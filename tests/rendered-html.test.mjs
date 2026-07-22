@@ -33,9 +33,10 @@ test("server-renders the reference-style CFTC mobile demo", async () => {
 });
 
 test("ships real multi-asset data and transparent methodology", async () => {
-  const [page, data, css, packageJson] = await Promise.all([
+  const [page, data, historyRoute, css, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/cftc-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/cftc-history/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
@@ -48,6 +49,9 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /基于CFTC官方数据的深度持仓结构分析/);
   assert.match(page, /本周重要变化/);
   assert.match(page, /市场结构/);
+  assert.match(page, /\/api\/cftc-history\?symbol=/);
+  assert.match(page, /选择CFTC报告日期/);
+  assert.match(page, /最近26期/);
   assert.doesNotMatch(page, /查看专业版演示|公开预览|收起演示/);
   assert.match(data, /openInterest: 383689/);
   assert.match(data, /long: 136905/);
@@ -55,9 +59,13 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(data, /symbol: "DXY"/);
   assert.match(data, /symbol: "BTC"/);
   assert.match(data, /thirdNet: -195639/);
+  assert.match(historyRoute, /72hh-3qpy/);
+  assert.match(historyRoute, /gpe5-46if/);
+  assert.match(historyRoute, /cftc_contract_market_code/);
   assert.match(css, /max-width: 448px/);
   assert.match(css, /\.cot-bottom-nav/);
   assert.match(css, /\.cot-asset-card/);
   assert.match(css, /\.analysis-tabs/);
+  assert.match(css, /\.date-menu/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });

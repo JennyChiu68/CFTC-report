@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { assets, reportMeta, type CftcAsset, type TraderRow } from "./cftc-data";
+import { assets, reportMeta, type CftcAsset, type CftcSnapshot, type TraderRow } from "./cftc-data";
 
 type Screen = "home" | "detail" | "pro";
 type DetailTab = "history" | "chart" | "depth";
@@ -86,6 +86,7 @@ function sourceFor(asset: CftcAsset) { return asset.reportType === "TFF" ? finan
 function traderName(name: string) { return traderLabels[name] ?? name; }
 function screenName(asset: CftcAsset) { return displayNames[asset.symbol] ?? asset.name; }
 function screenSymbol(asset: CftcAsset) { return displaySymbols[asset.symbol] ?? asset.symbol; }
+function displayReportDate(date: string) { return date.replaceAll("-", "/"); }
 
 function BrandHeader({ premium }: { premium: boolean }) {
   return (
@@ -180,7 +181,9 @@ function TraderPositionRow({ row, index }: { row: TraderRow; index: number }) {
 
 function WeeklyChangeRow({ row, asset, index }: { row: TraderRow; asset: CftcAsset; index: number }) {
   const map = asset.symbol === "XAU" ? goldChanges : asset.symbol === "DXY" ? dxyChanges : {};
-  const changes = map[row.name] ?? { long: 0, short: 0 };
+  const changes = row.longChange !== undefined && row.shortChange !== undefined
+    ? { long: row.longChange, short: row.shortChange }
+    : map[row.name] ?? { long: 0, short: 0 };
   return (
     <div className="change-row">
       <div className="change-heading"><strong><i style={{ background: traderDots[index % traderDots.length] }} />{traderName(row.name)}</strong><span className={row.netChange >= 0 ? "red" : "green"}>⌁ 净 {format(row.netChange, true)}</span></div>
@@ -256,7 +259,8 @@ function HistoryPanel({ asset }: { asset: CftcAsset }) {
   const history = asset.history ?? [];
   const count = Math.min(weeks, history.length);
   const visible = history.slice(0, count).reverse();
-  const oi = (oiHistory[asset.symbol] ?? Array(history.length).fill(asset.openInterest)).slice(0, count).reverse();
+  const staticOi = (oiHistory[asset.symbol] ?? Array(history.length).fill(asset.openInterest)).slice(0, count).reverse();
+  const oi = visible.map((point, index) => point.openInterest ?? staticOi[index] ?? asset.openInterest);
   return (
     <div className="tab-panel">
       <div className="range-row"><span>时间范围:</span>{([13, 26, 52] as const).map((item) => <button key={item} className={weeks === item ? "active" : ""} onClick={() => setWeeks(item)}>{item}周</button>)}</div>
@@ -272,8 +276,8 @@ function HistoryPanel({ asset }: { asset: CftcAsset }) {
             <div className="history-row history-head"><span>日期</span><span>总持仓</span><span>{asset.coreTrader}净</span><span>{asset.counterpartLabel ?? "对手净"}</span></div>
             {[...history].slice(0, count).map((point, index) => (
               <div className="history-row" key={point.date}>
-                <span className={index === 0 ? "latest-date" : ""}>2026-{point.date}{index === 0 && <small>最新</small>}</span>
-                <span>{format((oiHistory[asset.symbol] ?? [asset.openInterest])[index] ?? asset.openInterest)}</span>
+                <span className={index === 0 ? "latest-date" : ""}>{point.date.length === 5 ? `2026-${point.date}` : point.date}{index === 0 && <small>{point.selected ? "所选" : "最新"}</small>}</span>
+                <span>{format(point.openInterest ?? (oiHistory[asset.symbol] ?? [asset.openInterest])[index] ?? asset.openInterest)}</span>
                 <span className={point.net >= 0 ? "red" : "green"}>{formatNetPosition(point.net, true)}</span>
                 <span className={point.counterpartNet >= 0 ? "red" : "green"}>{formatNetPosition(point.counterpartNet, true)}</span>
               </div>
@@ -416,25 +420,100 @@ function DepthPanel({ asset, premium, onUnlock }: { asset: CftcAsset; premium: b
 }
 
 function DetailView({ asset, tab, setTab, onBack, premium, onUnlock }: { asset: CftcAsset; tab: DetailTab; setTab: (tab: DetailTab) => void; onBack: () => void; premium: boolean; onUnlock: () => void }) {
-  const rows = asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }];
-  const totalChange = asset.symbol === "XAU" ? 11913 : asset.symbol === "DXY" ? -91 : 0;
+  const [snapshots, setSnapshots] = useState<CftcSnapshot[]>([]);
+  const [selectedDate, setSelectedDate] = useState(reportMeta.asOf);
+  const [dateMenuOpen, setDateMenuOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyRequest, setHistoryRequest] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch(`/api/cftc-history?symbol=${encodeURIComponent(asset.symbol)}&limit=52`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("history unavailable");
+        return response.json() as Promise<{ snapshots?: CftcSnapshot[] }>;
+      })
+      .then((payload) => {
+        if (!payload.snapshots?.length) throw new Error("history empty");
+        setSnapshots(payload.snapshots);
+        setSelectedDate(payload.snapshots[0].date);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setHistoryError(true);
+      })
+      .finally(() => { if (!controller.signal.aborted) setHistoryLoading(false); });
+
+    return () => controller.abort();
+  }, [asset.symbol, historyRequest]);
+
+  const selectedIndex = snapshots.findIndex((snapshot) => snapshot.date === selectedDate);
+  const selectedSnapshot = selectedIndex >= 0 ? snapshots[selectedIndex] : undefined;
+  const historySnapshots = selectedIndex >= 0 ? snapshots.slice(selectedIndex) : snapshots;
+  const snapshotHistory = historySnapshots.map((snapshot, index) => {
+    const net = snapshot.long - snapshot.short;
+    const counterpart = snapshot.breakdown[asset.reportType === "Disaggregated" ? 0 : 1];
+    const third = snapshot.breakdown[asset.reportType === "Disaggregated" ? 1 : 0];
+    return {
+      date: snapshot.date,
+      net,
+      counterpartNet: counterpart ? counterpart.long - counterpart.short : 0,
+      thirdNet: third ? third.long - third.short : 0,
+      openInterest: snapshot.openInterest,
+      selected: index === 0 && selectedDate !== (snapshots[0]?.date ?? reportMeta.asOf),
+    };
+  });
+  const viewAsset: CftcAsset = selectedSnapshot ? {
+    ...asset,
+    openInterest: selectedSnapshot.openInterest,
+    long: selectedSnapshot.long,
+    short: selectedSnapshot.short,
+    weeklyDelta: selectedSnapshot.weeklyDelta,
+    breakdown: selectedSnapshot.breakdown,
+    history: snapshotHistory,
+  } : asset;
+  const rows = viewAsset.breakdown ?? [{ name: viewAsset.coreTrader, long: viewAsset.long, short: viewAsset.short, netChange: viewAsset.weeklyDelta }];
+  const totalChange = selectedSnapshot?.openInterestChange ?? (asset.symbol === "XAU" ? 11913 : asset.symbol === "DXY" ? -91 : 0);
+  const latestDate = snapshots[0]?.date ?? reportMeta.asOf;
+  const dateOptions = snapshots.slice(0, 26);
   return (
     <div className="cot-scroll detail-scroll">
       <section className="detail-titlebar">
         <button className="back" onClick={onBack} aria-label="返回">‹</button>
-        <div><h1>{screenName(asset)} <span>{screenSymbol(asset)}</span></h1><button className="date-button">2026/07/14 <small>最新</small>⌄</button></div>
-        <button className="refresh" aria-label="刷新">↻</button>
+        <div>
+          <h1>{screenName(asset)} <span>{screenSymbol(asset)}</span></h1>
+          <div className="date-control">
+            <button className="date-button" type="button" aria-expanded={dateMenuOpen} aria-haspopup="listbox" onClick={() => setDateMenuOpen((open) => !open)}>
+              {displayReportDate(selectedDate)} <small>{selectedDate === latestDate ? "最新" : "历史"}</small><b aria-hidden="true">{dateMenuOpen ? "⌃" : "⌄"}</b>
+            </button>
+            {dateMenuOpen && (
+              <div className="date-menu" role="listbox" aria-label="选择CFTC报告日期">
+                {historyLoading && <div className="date-menu-status">正在加载CFTC历史数据…</div>}
+                {historyError && !historyLoading && <div className="date-menu-status error">历史数据加载失败<button type="button" onClick={() => { setHistoryError(false); setHistoryLoading(true); setHistoryRequest((value) => value + 1); }}>重试</button></div>}
+                {!historyLoading && !historyError && dateOptions.map((snapshot, index) => (
+                  <button key={snapshot.date} type="button" role="option" aria-selected={snapshot.date === selectedDate} className={snapshot.date === selectedDate ? "active" : ""} onClick={() => { setSelectedDate(snapshot.date); setDateMenuOpen(false); }}>
+                    <span>{displayReportDate(snapshot.date)}</span>{index === 0 && <small>最新</small>}
+                  </button>
+                ))}
+                {!historyLoading && !historyError && dateOptions.length > 0 && <p>CFTC官方 · 最近26期</p>}
+              </div>
+            )}
+          </div>
+        </div>
+        <button className="refresh" aria-label="刷新" onClick={() => { setHistoryError(false); setHistoryLoading(true); setHistoryRequest((value) => value + 1); }}>↻</button>
       </section>
 
       <section className="detail-card positions-card">
-        <h2>各类交易者持仓</h2><p>总持仓 {format(asset.openInterest)}手 · <span className="red">红=多头</span> / <span className="green">绿=空头</span></p>
+        <h2>各类交易者持仓</h2><p>总持仓 {format(viewAsset.openInterest)}手 · <span className="red">红=多头</span> / <span className="green">绿=空头</span></p>
         {rows.map((row, index) => <TraderPositionRow row={row} index={index} key={row.name} />)}
       </section>
 
       <section className="detail-card changes-card">
         <h2>本周持仓变化</h2>
         <div className="total-change"><span><i />总持仓变化</span><strong className={totalChange >= 0 ? "red" : "green"}>⌁ {format(totalChange, true)}</strong></div>
-        {rows.map((row, index) => <WeeklyChangeRow row={row} asset={asset} index={index} key={row.name} />)}
+        {rows.map((row, index) => <WeeklyChangeRow row={row} asset={viewAsset} index={index} key={row.name} />)}
       </section>
 
       <div className="analysis-tabs" role="tablist">
@@ -443,9 +522,9 @@ function DetailView({ asset, tab, setTab, onBack, premium, onUnlock }: { asset: 
         <button role="tab" aria-selected={tab === "depth"} className={tab === "depth" ? "active" : ""} onClick={() => setTab("depth")}><span className="lock-icon" aria-hidden="true" /> 深度解读</button>
       </div>
 
-      {tab === "history" && <HistoryPanel asset={asset} />}
-      {tab === "chart" && <ChartPanel asset={asset} />}
-      {tab === "depth" && <DepthPanel asset={asset} premium={premium} onUnlock={onUnlock} />}
+      {tab === "history" && <HistoryPanel asset={viewAsset} />}
+      {tab === "chart" && <ChartPanel asset={viewAsset} />}
+      {tab === "depth" && <DepthPanel asset={viewAsset} premium={premium} onUnlock={onUnlock} />}
 
       <section className="detail-card instrument-note"><h3>品种说明</h3><p>{screenName(asset)}期货 CFTC 持仓分类报告，展示主要交易者类别的方向和变化。</p><div><span>合约单位: 手</span><span>{asset.reportType === "TFF" ? "金融期货报告" : "分类报告"}</span></div><a href={sourceFor(asset)} target="_blank" rel="noreferrer">核验官方原表 ↗</a></section>
     </div>
@@ -487,7 +566,7 @@ export default function Home() {
     <main className="cot-app">
       <BrandHeader premium={premium} />
       {screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} />}
-      {screen === "detail" && <DetailView asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} premium={premium} onUnlock={unlockPremium} />}
+      {screen === "detail" && <DetailView key={selected.symbol} asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} premium={premium} onUnlock={unlockPremium} />}
       {screen === "pro" && <ProView premium={premium} onUnlock={unlockPremium} onAsset={(asset) => openAsset(asset, "depth")} />}
       <BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => setScreen("pro")} />
     </main>

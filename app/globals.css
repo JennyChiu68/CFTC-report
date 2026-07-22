@@ -295,8 +295,20 @@ a { color: inherit; text-decoration: none; }
 .detail-titlebar > div { padding-left: 7px; }
 .detail-titlebar h1 { display: flex; align-items: center; gap: 8px; margin: 0 0 5px; font-size: 16px; }
 .detail-titlebar h1 span { padding: 3px 6px; border: 1px solid rgba(234, 179, 8, 0.28); border-radius: 4px; background: rgba(234, 179, 8, 0.12); color: #e1c23a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-weight: 500; }
-.date-button { height: 30px; padding: 0 9px; border: 1px solid rgba(8, 169, 168, 0.28); border-radius: 6px; background: rgba(8, 169, 168, 0.11); color: #14bdbb; cursor: pointer; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.date-control { position: relative; width: max-content; }
+.date-button { display: inline-flex; height: 30px; align-items: center; padding: 0 9px; border: 1px solid rgba(8, 169, 168, 0.35); border-radius: 6px; background: rgba(8, 169, 168, 0.13); color: #14bdbb; cursor: pointer; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 .date-button small { margin-left: 5px; font-size: 10px; }
+.date-button b { margin-left: 3px; font-size: 10px; font-weight: 600; }
+.date-menu { position: absolute; z-index: 80; top: 36px; left: 0; width: 210px; max-height: 300px; padding: 6px; overflow-y: auto; border: 1px solid #26343b; border-radius: 10px; background: #0d1418; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55); scrollbar-color: #35444c transparent; scrollbar-width: thin; }
+.date-menu > button { display: flex; width: 100%; min-height: 40px; align-items: center; justify-content: space-between; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: #b8c2c7; cursor: pointer; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; text-align: left; }
+.date-menu > button + button { margin-top: 2px; }
+.date-menu > button:hover { background: #141e23; }
+.date-menu > button.active { background: rgba(8, 169, 168, 0.17); color: #19c3c0; font-weight: 700; }
+.date-menu > button small { padding: 2px 6px; border-radius: 8px; background: rgba(8, 169, 168, 0.15); font-family: Inter, "PingFang SC", sans-serif; font-size: 10px; }
+.date-menu > p { margin: 6px 4px 2px; padding-top: 8px; border-top: 1px solid #1b262c; color: #839097; font-size: 10px; text-align: center; }
+.date-menu-status { padding: 18px 10px; color: #9ba7ad; font-size: 11px; line-height: 1.6; text-align: center; }
+.date-menu-status.error { color: #d4a95d; }
+.date-menu-status button { display: block; margin: 9px auto 0; padding: 5px 12px; border: 1px solid rgba(8, 169, 168, 0.32); border-radius: 6px; background: rgba(8, 169, 168, 0.14); color: #19bcb9; cursor: pointer; font-size: 11px; }
 
 .detail-scroll { padding-bottom: 18px; }
 

@@ -5,6 +5,8 @@ export type TraderRow = {
   long: number;
   short: number;
   spreading?: number;
+  longChange?: number;
+  shortChange?: number;
   netChange: number;
 };
 
@@ -13,6 +15,18 @@ export type HistoryPoint = {
   net: number;
   counterpartNet: number;
   thirdNet?: number;
+  openInterest?: number;
+  selected?: boolean;
+};
+
+export type CftcSnapshot = {
+  date: string;
+  openInterest: number;
+  openInterestChange: number;
+  long: number;
+  short: number;
+  weeklyDelta: number;
+  breakdown: TraderRow[];
 };
 
 export type CftcAsset = {
