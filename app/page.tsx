@@ -82,14 +82,14 @@ function traderName(name: string) { return traderLabels[name] ?? name; }
 function screenName(asset: CftcAsset) { return displayNames[asset.symbol] ?? asset.name; }
 function screenSymbol(asset: CftcAsset) { return displaySymbols[asset.symbol] ?? asset.symbol; }
 
-function BrandHeader() {
+function BrandHeader({ premium }: { premium: boolean }) {
   return (
     <header className="cot-header">
       <div className="cot-brand">
         <span className="brand-chart"><i /><i /><i /></span>
         <div><strong>CFTC COT</strong><span>持仓分析</span></div>
       </div>
-      <span className="official-status"><i /> 官方数据</span>
+      {premium ? <span className="premium-status"><b>✧</b> PRO</span> : <span className="official-status"><i /> 官方数据</span>}
     </header>
   );
 }
@@ -309,7 +309,7 @@ function PremiumPreview({ variant }: { variant: "detail" | "pro" }) {
   );
 }
 
-function PremiumGate({ preview }: { preview: "detail" | "pro" }) {
+function PremiumGate({ preview, onUnlock }: { preview: "detail" | "pro"; onUnlock: () => void }) {
   return (
     <section className="pro-gate-card">
       <div className="pro-gate-head"><span className="wand-icon" aria-hidden="true">✧</span><div><h3>专业版内容 <b>PRO</b></h3><p>以下内容为付费会员专属，提供更深层的持仓结构分析</p></div></div>
@@ -319,16 +319,98 @@ function PremiumGate({ preview }: { preview: "detail" | "pro" }) {
         <div><i className="feature-trend">↗</i><span><strong>历史极值对比</strong><small>当前持仓与历史极端点的统计对比，了解历史规律</small></span></div>
         <div><i className="feature-report">▤</i><span><strong>每周持仓周报</strong><small>跨品种持仓变化摘要，快速掌握本周最值得关注的变化</small></span></div>
       </div>
-      <div className="pro-gate-action"><button type="button"><span className="lock-icon" aria-hidden="true" /> 登录后升级专业版</button><p>所有分析均基于CFTC官方公开数据，仅描述持仓结构事实，不构成投资建议</p></div>
+      <div className="pro-gate-action"><button type="button" onClick={onUnlock}><span className="lock-icon" aria-hidden="true" /> 登录后升级专业版</button><p>所有分析均基于CFTC官方公开数据，仅描述持仓结构事实，不构成投资建议</p></div>
     </section>
   );
 }
 
-function DepthPanel() {
-  return <div className="tab-panel"><PremiumGate preview="detail" /></div>;
+function PremiumAnalysis({ asset }: { asset: CftcAsset }) {
+  const net = netOf(asset);
+  const directionTotal = asset.long + asset.short;
+  const history = asset.history ?? [];
+  const values = history.length ? history.map((point) => point.net) : [net * 0.72, net * 0.86, net];
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const percentile = Math.max(0, Math.min(100, Math.round(((net - low) / Math.max(1, high - low)) * 100)));
+  const rangePosition = Math.max(2, Math.min(98, percentile));
+  const structure = net > directionTotal * 0.18 ? "多头主导" : net < -directionTotal * 0.18 ? "空头主导" : "多空均衡";
+  const trend = asset.weeklyDelta > 0 ? "持续增多" : asset.weeklyDelta < 0 ? "持续减少" : "震荡";
+  const rows = asset.breakdown ?? [];
+  const opposite = rows
+    .filter((row) => row.name !== asset.coreTrader)
+    .sort((a, b) => net >= 0 ? (a.long - a.short) - (b.long - b.short) : (b.long - b.short) - (a.long - a.short))[0];
+  const oppositeNet = opposite ? opposite.long - opposite.short : -net;
+  const summary = asset.symbol === "XAU"
+    ? `管理基金净多仍处于近26周高位，当前为 ${format(net, true)} 手。多头结构保持优势，但本周扩张速度较前期放缓。`
+    : asset.symbol === "DXY"
+      ? `杠杆资金维持净空 ${format(Math.abs(net))} 手，而资管机构方向相反。美元当前处在机构持仓分歧阶段。`
+      : `${asset.coreTrader}当前净持仓 ${format(net, true)} 手，方向持仓中多头占 ${share(asset.long, asset.short)}%，整体呈${structure}。`;
+
+  return (
+    <div className="premium-analysis" aria-label={`${screenName(asset)}专业版深度解读`}>
+      <section className="premium-card structure-card">
+        <div className="premium-card-title"><h3>市场结构</h3><div><span className={`structure-badge ${net >= 0 ? "bull" : "bear"}`}>{structure}</span><span className={asset.weeklyDelta >= 0 ? "trend-up" : "trend-down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"} {trend}</span></div></div>
+        <p>{summary}</p>
+        <div className="percentile-scale"><div><span>历史低位</span><strong>{percentile}%分位</strong><span>历史高位</span></div><i><b style={{ left: `${rangePosition}%` }} /></i></div>
+      </section>
+
+      {(percentile >= 85 || percentile <= 15) && <section className="premium-warning">当前核心资金净仓已接近历史极值区，方向优势明显，同时需留意拥挤交易松动风险。</section>}
+
+      <section className="premium-card context-card"><h3>投机者持仓背景</h3><p>{asset.coreTrader}本周净仓变化 {format(asset.weeklyDelta, true)} 手，当前多头 {format(asset.long)} 手、空头 {format(asset.short)} 手。{net >= 0 ? "资金仍以净多结构为主。" : "资金仍以净空结构为主。"}</p></section>
+      <section className="premium-card context-card"><h3>近期动能</h3><p>{asset.weeklyDelta >= 0 ? "核心资金继续向多头方向移动" : "核心资金本周向空头方向移动"}，变化幅度相当于当前净仓的 {Math.round(Math.abs(asset.weeklyDelta) / Math.max(1, Math.abs(net)) * 100)}%。需结合下周总持仓变化确认延续性。</p></section>
+      <section className="premium-card context-card"><h3>商业用户持仓背景</h3><p>{opposite ? traderName(opposite.name) : "对手资金"}当前净持仓 {format(oppositeNet, true)} 手，与核心投机资金{Math.sign(oppositeNet) === Math.sign(net) ? "方向一致" : "方向相反"}，反映出套保盘与趋势资金之间的结构关系。</p></section>
+
+      <section className="premium-card extremes-card">
+        <div className="premium-card-title"><h3>历史极值对比</h3><span>近{history.length || 26}周</span></div>
+        <div className="extreme-grid"><div><span>当前净仓</span><strong className={net >= 0 ? "red" : "green"}>{format(net, true)}</strong></div><div><span>区间最高</span><strong>{format(high, true)}</strong></div><div><span>区间最低</span><strong>{format(low, true)}</strong></div></div>
+      </section>
+      <p className="premium-disclaimer">以上分析基于CFTC官方公开数据，仅描述持仓结构事实，不构成投资建议</p>
+    </div>
+  );
 }
 
-function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: DetailTab; setTab: (tab: DetailTab) => void; onBack: () => void }) {
+function WeeklyPremiumReport({ onAsset }: { onAsset: (asset: CftcAsset) => void }) {
+  const reportItems = ["XAU", "NG", "DXY", "EUR", "ES", "BTC"].map((symbol) => assets.find((asset) => asset.symbol === symbol)).filter((asset): asset is CftcAsset => Boolean(asset));
+  const important = reportItems.slice(0, 3);
+  return (
+    <div className="weekly-premium-report">
+      <div className="weekly-report-meta"><span>报告日期: 2026/07/14</span><strong>3 个重要变化</strong></div>
+      <section className="important-report-card">
+        <header><span>✦</span> 本周重要变化</header>
+        {important.map((asset) => {
+          const highlight = asset.symbol === "XAU" ? "管理基金净多仍处近26周高位" : asset.symbol === "NG" ? "管理基金净空单周扩大45.4K" : "资管净多、杠杆资金净空，分歧延续";
+          return <button key={asset.symbol} type="button" onClick={() => onAsset(asset)}><i className={asset.weeklyDelta >= 0 ? "up" : "down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)}</b><small>{highlight}</small></span><strong className={asset.weeklyDelta >= 0 ? "red" : "green"}>{format(asset.weeklyDelta, true)}</strong></button>;
+        })}
+      </section>
+      <section className="all-report-section"><h3>跨品种持仓摘要</h3>{reportItems.map((asset) => {
+        const net = netOf(asset);
+        const label = net > 0 ? "多头主导" : "空头主导";
+        return <button key={asset.symbol} type="button" onClick={() => onAsset(asset)}><i className={asset.weeklyDelta >= 0 ? "up" : "down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)} <em className={net >= 0 ? "bull" : "bear"}>{label}</em></b><small>净仓 {format(net, true)} · 本周 {format(asset.weeklyDelta, true)}</small></span><strong>›</strong></button>;
+      })}</section>
+      <p className="premium-disclaimer">数据来自CFTC官方公开报告，仅描述持仓结构事实，不构成投资建议</p>
+    </div>
+  );
+}
+
+function DeepPremiumView({ onAsset }: { onAsset: (asset: CftcAsset) => void }) {
+  const choices = ["XAU", "XAG", "DXY", "CL", "NG", "EUR"];
+  const [selectedSymbol, setSelectedSymbol] = useState("XAU");
+  const selectedAsset = assets.find((asset) => asset.symbol === selectedSymbol) ?? assets[0];
+  return (
+    <div className="deep-premium-view">
+      <p className="premium-selector-label">选择品种查看深度解读</p>
+      <div className="premium-selector">{choices.map((symbol) => { const asset = assets.find((item) => item.symbol === symbol); return asset ? <button type="button" key={symbol} className={selectedSymbol === symbol ? "active" : ""} onClick={() => setSelectedSymbol(symbol)}>{screenName(asset)}</button> : null; })}</div>
+      <button type="button" className="full-data-link" onClick={() => onAsset(selectedAsset)}><span>查看 {screenName(selectedAsset)} 完整持仓数据</span><b>›</b></button>
+      <PremiumAnalysis asset={selectedAsset} />
+    </div>
+  );
+}
+
+function DepthPanel({ asset, premium, onUnlock }: { asset: CftcAsset; premium: boolean; onUnlock: () => void }) {
+  return <div className="tab-panel">{premium ? <PremiumAnalysis asset={asset} /> : <PremiumGate preview="detail" onUnlock={onUnlock} />}</div>;
+}
+
+function DetailView({ asset, tab, setTab, onBack, premium, onUnlock }: { asset: CftcAsset; tab: DetailTab; setTab: (tab: DetailTab) => void; onBack: () => void; premium: boolean; onUnlock: () => void }) {
   const rows = asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }];
   const totalChange = asset.symbol === "XAU" ? 11913 : asset.symbol === "DXY" ? -91 : 0;
   return (
@@ -358,14 +440,14 @@ function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: Det
 
       {tab === "history" && <HistoryPanel asset={asset} />}
       {tab === "chart" && <ChartPanel asset={asset} />}
-      {tab === "depth" && <DepthPanel />}
+      {tab === "depth" && <DepthPanel asset={asset} premium={premium} onUnlock={onUnlock} />}
 
       <section className="detail-card instrument-note"><h3>品种说明</h3><p>{screenName(asset)}期货 CFTC 持仓分类报告，展示主要交易者类别的方向和变化。</p><div><span>合约单位: 手</span><span>{asset.reportType === "TFF" ? "金融期货报告" : "分类报告"}</span></div><a href={sourceFor(asset)} target="_blank" rel="noreferrer">核验官方原表 ↗</a></section>
     </div>
   );
 }
 
-function ProView() {
+function ProView({ premium, onUnlock, onAsset }: { premium: boolean; onUnlock: () => void; onAsset: (asset: CftcAsset) => void }) {
   const [section, setSection] = useState<"weekly" | "analysis">("weekly");
   return (
     <div className="cot-scroll pro-page">
@@ -374,7 +456,7 @@ function ProView() {
         <button type="button" role="tab" aria-selected={section === "weekly"} className={section === "weekly" ? "active" : ""} onClick={() => setSection("weekly")}>持仓周报</button>
         <button type="button" role="tab" aria-selected={section === "analysis"} className={section === "analysis" ? "active" : ""} onClick={() => setSection("analysis")}>深度解读</button>
       </div>
-      <div className="pro-gate-wrap"><PremiumGate preview="pro" /></div>
+      <div className="pro-gate-wrap">{premium ? section === "weekly" ? <WeeklyPremiumReport onAsset={onAsset} /> : <DeepPremiumView onAsset={onAsset} /> : <PremiumGate preview="pro" onUnlock={onUnlock} />}</div>
     </div>
   );
 }
@@ -384,7 +466,12 @@ export default function Home() {
   const [filter, setFilter] = useState<Filter>("全部");
   const [symbol, setSymbol] = useState("XAU");
   const [tab, setTab] = useState<DetailTab>("history");
+  const [premium, setPremium] = useState(false);
   const selected = useMemo(() => assets.find((asset) => asset.symbol === symbol) ?? assets[0], [symbol]);
+
+  function unlockPremium() {
+    setPremium(true);
+  }
 
   function openAsset(asset: CftcAsset, openTab: DetailTab = "history") {
     setSymbol(asset.symbol); setTab(openTab); setScreen("detail");
@@ -393,10 +480,10 @@ export default function Home() {
 
   return (
     <main className="cot-app">
-      <BrandHeader />
+      <BrandHeader premium={premium} />
       {screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} />}
-      {screen === "detail" && <DetailView asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} />}
-      {screen === "pro" && <ProView />}
+      {screen === "detail" && <DetailView asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} premium={premium} onUnlock={unlockPremium} />}
+      {screen === "pro" && <ProView premium={premium} onUnlock={unlockPremium} onAsset={(asset) => openAsset(asset, "depth")} />}
       <BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => setScreen("pro")} />
     </main>
   );

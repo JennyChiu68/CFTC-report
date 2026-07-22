@@ -44,6 +44,8 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /登录后升级专业版/);
   assert.match(page, /持仓结构深度解读/);
   assert.match(page, /基于CFTC官方数据的深度持仓结构分析/);
+  assert.match(page, /本周重要变化/);
+  assert.match(page, /市场结构/);
   assert.doesNotMatch(page, /查看专业版演示|公开预览|收起演示/);
   assert.match(data, /openInterest: 383689/);
   assert.match(data, /long: 136905/);
