@@ -20,7 +20,7 @@ test("server-renders the reference-style CFTC mobile demo", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /CFTC COT/);
+  assert.match(html, /CFTC持仓动向/);
   assert.match(html, /CFTC 持仓报告/);
   assert.match(html, /官方数据/);
   assert.match(html, /2026-07-14/);

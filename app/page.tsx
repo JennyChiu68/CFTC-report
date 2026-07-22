@@ -87,7 +87,7 @@ function BrandHeader({ premium }: { premium: boolean }) {
     <header className="cot-header">
       <div className="cot-brand">
         <span className="brand-chart"><i /><i /><i /></span>
-        <div><strong>CFTC COT</strong><span>持仓分析</span></div>
+        <div><strong>CFTC持仓动向</strong></div>
       </div>
       {premium ? <span className="premium-status"><b>✧</b> PRO</span> : <span className="official-status"><i /> 官方数据</span>}
     </header>
