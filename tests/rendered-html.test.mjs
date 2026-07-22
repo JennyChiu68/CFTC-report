@@ -36,7 +36,7 @@ test("ships real multi-asset data and transparent methodology", async () => {
   const [page, data, historyRoute, css, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/cftc-data.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/cftc-history/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/cftc-service.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
@@ -44,18 +44,18 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /Disaggregated 原表/);
   assert.match(page, /TFF 原表/);
   assert.match(page, /多头 ÷（多头 \+ 空头）/);
-  assert.match(page, /登录后升级专业版/);
+  assert.match(page, /查看完整专业版/);
   assert.match(page, /持仓结构深度解读/);
-  assert.match(page, /基于CFTC官方数据的深度持仓结构分析/);
+  assert.match(page, /跨品种变化筛选、历史分位与多周结构解读/);
   assert.match(page, /本周重要变化/);
   assert.match(page, /市场结构/);
   assert.match(page, /\/api\/cftc-history\?symbol=/);
   assert.match(page, /选择CFTC报告日期/);
-  assert.match(page, /最近26期/);
+  assert.match(page, /可选最近52期/);
   assert.match(page, /当前净仓结构/);
-  assert.match(page, /净仓绝对值占比/);
+  assert.match(page, /绝对净仓规模占比/);
   assert.match(page, /PositionFanCanvas/);
-  assert.doesNotMatch(page, /查看专业版演示|公开预览|收起演示/);
+  assert.doesNotMatch(page, /公开预览|收起演示/);
   assert.match(data, /openInterest: 383689/);
   assert.match(data, /long: 136905/);
   assert.match(data, /short: 16126/);

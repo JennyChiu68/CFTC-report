@@ -552,6 +552,83 @@ a { color: inherit; text-decoration: none; }
 .full-data-link b { color: #87949b; font-size: 20px; font-weight: 400; }
 .deep-premium-view .premium-analysis { margin-top: 2px; }
 
+/* Readability, interaction and data-state refinements */
+.cot-brand strong { font-size: 17px; letter-spacing: 0.01em; }
+.official-status { color: #a8b3b8; font-size: 12px; }
+.home-intro h1 { font-size: 20px; }
+.home-intro p { color: #b3bdc2; font-size: 13px; }
+.home-intro small { display: block; margin-top: 4px; color: #849197; font-size: 11px; line-height: 1.5; }
+.data-notice { margin: 0 16px 12px; padding: 9px 11px; border: 1px solid rgba(245, 173, 61, 0.22); border-radius: 8px; background: rgba(245, 173, 61, 0.07); color: #dfbd80; font-size: 12px; line-height: 1.55; }
+.filter-strip button { color: #adb7bc; font-size: 13px; }
+.group-title h2 { font-size: 15px; }
+.group-title p { color: #a5b0b5; font-size: 12px; }
+.asset-card-heading strong { font-size: 16px; }
+.asset-card-sub, .weekly-line { font-size: 13px; }
+.summary-metrics span { font-size: 13px; }
+.summary-metrics strong { font-size: 15px; }
+
+.detail-titlebar h1 { font-size: 18px; }
+.date-button { height: 34px; font-size: 13px; }
+.date-button small { font-size: 11px; }
+.date-menu > button { font-size: 13px; }
+.analysis-tabs { margin-top: 12px; border: 1px solid #1b262c; background: rgba(13, 19, 23, 0.97); }
+.analysis-tabs button { font-size: 13px; font-weight: 650; }
+.detail-card h2, .detail-card h3 { font-size: 16px; font-weight: 700; }
+.detail-card > p { color: #a9b4b9; font-size: 13px; }
+.positions-card { margin-right: 16px; margin-left: 16px; }
+.positions-card > h2 { padding-top: 15px; }
+.positions-card > p { padding-bottom: 14px; }
+.trader-row-heading strong, .change-heading strong { font-size: 14px; }
+.trader-row-heading > span, .change-heading > span { font-size: 14px; }
+.trader-numbers { color: #b8c1c5; font-size: 13px; }
+.detail-percent { font-size: 12px; }
+
+.inline-data-state { margin: 10px 16px 0; color: #91a1a8; font-size: 11px; text-align: center; }
+.inline-data-state.error { color: #d1ad70; }
+.changes-card { padding: 0; overflow: hidden; }
+.changes-card.collapsed { border-color: #202c32; }
+.changes-toggle { display: flex; width: 100%; min-height: 62px; align-items: center; justify-content: space-between; padding: 0 16px; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.changes-toggle > span { display: flex; flex-direction: column; gap: 4px; }
+.changes-toggle b { font-size: 15px; }
+.changes-toggle small { color: #9da9ae; font-size: 12px; }
+.changes-toggle > strong { color: #19b9b6; font-size: 12px; font-weight: 600; }
+.changes-body { padding: 0 16px 16px; border-top: 1px solid #151e23; }
+.changes-body .total-change { margin-top: 14px; }
+.range-row { height: 56px; padding-top: 12px; }
+.range-row span { color: #aab5ba; font-size: 12px; }
+.range-row button { min-width: 48px; font-size: 12px; }
+.range-row button:disabled { cursor: not-allowed; opacity: 0.35; }
+
+.chart-card-heading p { color: #a5b0b5; font-size: 12px; }
+.chart-caveat { margin: 0 0 5px !important; color: #8f9ca2 !important; font-size: 11px !important; text-align: center; }
+.chart-legend.toggles { gap: 7px; }
+.chart-legend.toggles button { display: inline-flex; min-height: 30px; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid #263239; border-radius: 7px; background: #11181c; color: #8f9ba1; cursor: pointer; font-size: 11px; }
+.chart-legend.toggles button.active { border-color: rgba(8, 169, 168, 0.3); color: #d0d7da; }
+.chart-legend.toggles button:not(.active) i { opacity: 0.25; }
+.chart-readout { display: flex; min-height: 48px; margin-top: 5px; padding: 8px 10px; flex-wrap: wrap; align-items: center; gap: 6px 12px; border: 1px solid #1b272d; border-radius: 8px; background: #081014; }
+.chart-readout > strong { width: 100%; color: #15bbb8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.chart-readout span { display: inline-flex; align-items: center; gap: 5px; color: #aab5ba; font-size: 11px; }
+.chart-readout span i { width: 7px; height: 7px; border-radius: 50%; }
+.chart-readout span b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.chart-readout.single > strong { width: auto; margin-right: auto; }
+.fan-legend span { color: #d4dadd; font-size: 13px; }
+.fan-legend small, .fan-legend strong { font-size: 12px; }
+.history-row { font-size: 11px; }
+.history-head { color: #a6b1b6; font-size: 11px; }
+.horizontal-bars span, .horizontal-bars b { font-size: 12px; }
+.explainer-card p { color: #b7c1c5; font-size: 13px; }
+
+.pro-title h1 { font-size: 22px; }
+.pro-title p { color: #cbd2d5; font-size: 15px; }
+.pro-gate-head h3 { font-size: 16px; }
+.pro-gate-head p, .pro-features small { color: #aab5ba; font-size: 13px; }
+.pro-features strong { font-size: 14px; }
+.pro-gate-action button { min-height: 48px; font-size: 15px; }
+.pro-gate-action p { color: #98a5aa; font-size: 12px; }
+.weekly-report-meta, .weekly-report-meta strong { font-size: 13px; }
+.premium-disclaimer { color: #a2adb2; }
+.instrument-note > p { color: #aeb9bd; }
+
 @media (min-width: 500px) {
   .cot-app { border-right: 1px solid #11181c; border-left: 1px solid #11181c; }
 }
