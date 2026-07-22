@@ -291,66 +291,41 @@ function ChartPanel({ asset }: { asset: CftcAsset }) {
   );
 }
 
-function ProAnalysisDemo({ asset, onClose }: { asset: CftcAsset; onClose: () => void }) {
-  const net = netOf(asset);
-  const longPct = share(asset.long, asset.short);
-  const history = asset.history ?? [];
-  const percentile = history.length
-    ? Math.round((history.filter((point) => point.net <= net).length / history.length) * 100)
-    : null;
-  const isGold = asset.symbol === "XAU";
-  const isDxy = asset.symbol === "DXY";
-  const headline = isGold ? "偏多，但高位开始降温" : isDxy ? "机构分歧仍然显著" : net >= 0 ? "投机资金维持净多" : "投机资金维持净空";
-  const summary = isGold
-    ? "管理基金净多仍处于近 26 周高位，但最近数周没有继续扩张。结构偏多，追涨性价比正在下降。"
-    : isDxy
-      ? "资管机构保持净多，杠杆资金仍为净空；两类机构方向相反，美元处于典型的持仓分歧阶段。"
-      : `${asset.coreTrader}当前净持仓为 ${format(net, true)} 手，本周变化 ${format(asset.weeklyDelta, true)} 手。`;
+function PremiumPreview({ variant }: { variant: "detail" | "pro" }) {
+  if (variant === "detail") {
+    return (
+      <div className="premium-detail-preview" aria-hidden="true">
+        <i className="wide" /><i /><i className="mid" /><i className="block" /><i className="short" /><i className="wide" />
+      </div>
+    );
+  }
+
   return (
-    <section className="pro-demo-card" aria-label={`${screenName(asset)}专业版演示`}>
-      <div className="pro-demo-heading">
-        <div><span>✧</span><div><small>专业版演示 · 公开预览</small><h2>{screenName(asset)}持仓深度解读</h2></div></div>
-        <button onClick={onClose} aria-label="收起专业版演示">×</button>
+    <div className="premium-list-preview" aria-hidden="true">
+      {["黄金 · 多头主导", "欧元 · 空头主导", "原油(WTI) · 多空均衡", "标普500 · 多头主导"].map((item) => (
+        <div key={item}><i /><span><strong>{item}</strong><small>████████████████████</small></span></div>
+      ))}
+    </div>
+  );
+}
+
+function PremiumGate({ preview }: { preview: "detail" | "pro" }) {
+  return (
+    <section className="pro-gate-card">
+      <div className="pro-gate-head"><span className="wand-icon" aria-hidden="true">✧</span><div><h3>专业版内容 <b>PRO</b></h3><p>以下内容为付费会员专属，提供更深层的持仓结构分析</p></div></div>
+      <div className={`pro-preview pro-preview-${preview}`}><PremiumPreview variant={preview} /><i className="preview-fade" /></div>
+      <div className="pro-features">
+        <div><i className="feature-bars"><b /><b /><b /></i><span><strong>持仓结构深度解读</strong><small>投机者与商业用户的持仓逻辑、历史背景分析</small></span></div>
+        <div><i className="feature-trend">↗</i><span><strong>历史极值对比</strong><small>当前持仓与历史极端点的统计对比，了解历史规律</small></span></div>
+        <div><i className="feature-report">▤</i><span><strong>每周持仓周报</strong><small>跨品种持仓变化摘要，快速掌握本周最值得关注的变化</small></span></div>
       </div>
-      <div className="pro-signal-card">
-        <div><span>本周结论</span><b>演示</b></div>
-        <h3>{headline}</h3>
-        <p>{summary}</p>
-      </div>
-      <div className="pro-stat-grid">
-        <div><span>核心净持仓</span><strong className={net >= 0 ? "red" : "green"}>{format(net, true)}</strong><small>{asset.coreTrader}</small></div>
-        <div><span>多头占比</span><strong>{longPct}%</strong><small>方向持仓</small></div>
-        <div><span>历史分位</span><strong>{percentile === null ? "—" : `${percentile}%`}</strong><small>近 {history.length || 26} 周</small></div>
-      </div>
-      <div className="pro-insight-list">
-        <article><i>01</i><div><strong>结构判断</strong><p>{isGold ? `管理基金多头占方向持仓 ${longPct}%，净多 ${format(net)} 手，资金方向仍明显偏多。` : `${asset.coreTrader}多头占方向持仓 ${longPct}%，当前净仓为 ${format(net, true)} 手。`}</p></div></article>
-        <article><i>02</i><div><strong>变化解读</strong><p>{asset.weeklyDelta >= 0 ? `本周净持仓增加 ${format(asset.weeklyDelta)} 手，短线资金仍在回补多头。` : `本周净持仓减少 ${format(Math.abs(asset.weeklyDelta))} 手，短线资金出现降温。`}</p></div></article>
-        <article><i>03</i><div><strong>观察条件</strong><p>{isGold ? "若净多继续回落且跌破近四周低点，需警惕高位拥挤交易松动；若重新突破近期高点，则多头结构延续。" : "继续观察核心资金净仓是否连续两周同向变化，并结合总持仓确认趋势是否获得新增资金支持。"}</p></div></article>
-      </div>
-      <div className="pro-demo-footer"><span>示例用于展示钻石 VIP 的解读形态</span><button onClick={onClose}>收起演示</button></div>
-      <p className="risk-copy">基于 CFTC 官方公开数据的结构化解读，仅供研究参考，不构成投资建议</p>
+      <div className="pro-gate-action"><button type="button"><span className="lock-icon" aria-hidden="true" /> 登录后升级专业版</button><p>所有分析均基于CFTC官方公开数据，仅描述持仓结构事实，不构成投资建议</p></div>
     </section>
   );
 }
 
-function DepthPanel({ asset }: { asset: CftcAsset }) {
-  const [showDemo, setShowDemo] = useState(false);
-  if (showDemo) return <div className="tab-panel"><ProAnalysisDemo asset={asset} onClose={() => setShowDemo(false)} /></div>;
-  return (
-    <div className="tab-panel">
-      <section className="pro-gate-card">
-        <div className="pro-gate-head"><span>⌁</span><div><h3>专业版内容 <b>PRO</b></h3><p>以下内容为付费会员专属，提供更深层的持仓结构分析</p></div></div>
-        <div className="pro-space" />
-        <div className="pro-features">
-          <div><i>▥</i><span><strong>持仓结构深度解读</strong><small>投机者与商业用户的持仓逻辑、历史背景分析</small></span></div>
-          <div><i>↗</i><span><strong>历史极值对比</strong><small>当前持仓与历史极端点的统计对比，了解历史规律</small></span></div>
-          <div><i>◫</i><span><strong>每周持仓周报</strong><small>跨品种持仓变化摘要，快速掌握本周变化</small></span></div>
-        </div>
-        <button onClick={() => setShowDemo(true)}>查看专业版演示</button>
-        <p className="risk-copy">所有分析均基于 CFTC 官方公开数据，仅描述持仓结构事实，不构成投资建议</p>
-      </section>
-    </div>
-  );
+function DepthPanel() {
+  return <div className="tab-panel"><PremiumGate preview="detail" /></div>;
 }
 
 function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: DetailTab; setTab: (tab: DetailTab) => void; onBack: () => void }) {
@@ -378,28 +353,28 @@ function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: Det
       <div className="analysis-tabs" role="tablist">
         <button role="tab" aria-selected={tab === "history"} className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>历史趋势</button>
         <button role="tab" aria-selected={tab === "chart"} className={tab === "chart" ? "active" : ""} onClick={() => setTab("chart")}>图表</button>
-        <button role="tab" aria-selected={tab === "depth"} className={tab === "depth" ? "active" : ""} onClick={() => setTab("depth")}><span>▱</span> 深度解读</button>
+        <button role="tab" aria-selected={tab === "depth"} className={tab === "depth" ? "active" : ""} onClick={() => setTab("depth")}><span className="lock-icon" aria-hidden="true" /> 深度解读</button>
       </div>
 
       {tab === "history" && <HistoryPanel asset={asset} />}
       {tab === "chart" && <ChartPanel asset={asset} />}
-      {tab === "depth" && <DepthPanel asset={asset} />}
+      {tab === "depth" && <DepthPanel />}
 
       <section className="detail-card instrument-note"><h3>品种说明</h3><p>{screenName(asset)}期货 CFTC 持仓分类报告，展示主要交易者类别的方向和变化。</p><div><span>合约单位: 手</span><span>{asset.reportType === "TFF" ? "金融期货报告" : "分类报告"}</span></div><a href={sourceFor(asset)} target="_blank" rel="noreferrer">核验官方原表 ↗</a></section>
     </div>
   );
 }
 
-function ProView({ onAsset }: { onAsset: (asset: CftcAsset) => void }) {
-  const [showDemo, setShowDemo] = useState(false);
-  const demoAsset = assets.find((asset) => asset.symbol === "XAU") ?? assets[0];
+function ProView() {
+  const [section, setSection] = useState<"weekly" | "analysis">("weekly");
   return (
     <div className="cot-scroll pro-page">
-      <div className="pro-hero"><span>✧</span><h1>钻石VIP专业版</h1><p>不锁公开数据，只提供更深的持仓结构判断。</p><button onClick={() => setShowDemo(true)}>查看专业版演示</button></div>
-      {showDemo ? <ProAnalysisDemo asset={demoAsset} onClose={() => setShowDemo(false)} /> : <>
-        <section className="pro-overview-card"><small>本周跨品种摘要</small><h2>三个值得关注的持仓变化</h2><button onClick={() => onAsset(demoAsset)}><span>01</span><div><strong>黄金净多处于高位</strong><small>管理基金近 26 周第 96 百分位</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "NG") ?? assets[0])}><span>02</span><div><strong>天然气净仓快速降温</strong><small>本周变化 -45.4K</small></div><b>›</b></button><button onClick={() => onAsset(assets.find((asset) => asset.symbol === "DXY") ?? assets[0])}><span>03</span><div><strong>美元机构持仓分歧</strong><small>资管净多、杠杆基金净空</small></div><b>›</b></button></section>
-        <DepthPanel asset={demoAsset} />
-      </>}
+      <section className="pro-title"><div><h1>专业版</h1><span>PRO</span></div><p>基于CFTC官方数据的深度持仓结构分析</p></section>
+      <div className="pro-segments" role="tablist">
+        <button type="button" role="tab" aria-selected={section === "weekly"} className={section === "weekly" ? "active" : ""} onClick={() => setSection("weekly")}>持仓周报</button>
+        <button type="button" role="tab" aria-selected={section === "analysis"} className={section === "analysis" ? "active" : ""} onClick={() => setSection("analysis")}>深度解读</button>
+      </div>
+      <div className="pro-gate-wrap"><PremiumGate preview="pro" /></div>
     </div>
   );
 }
@@ -421,7 +396,7 @@ export default function Home() {
       <BrandHeader />
       {screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} />}
       {screen === "detail" && <DetailView asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} />}
-      {screen === "pro" && <ProView onAsset={(asset) => openAsset(asset, "depth")} />}
+      {screen === "pro" && <ProView />}
       <BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => setScreen("pro")} />
     </main>
   );
