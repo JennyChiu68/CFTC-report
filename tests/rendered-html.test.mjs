@@ -48,6 +48,7 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /持仓结构深度解读/);
   assert.match(page, /跨品种变化筛选、历史分位与多周结构解读/);
   assert.match(page, /本周重要变化/);
+  assert.match(page, /setSelectedSymbol\(asset\.symbol\); setSection\("analysis"\)/);
   assert.match(page, /市场结构/);
   assert.match(page, /\/api\/cftc-history\?symbol=/);
   assert.match(page, /选择CFTC报告日期/);
