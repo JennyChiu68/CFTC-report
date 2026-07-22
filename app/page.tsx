@@ -77,6 +77,11 @@ function format(value: number, signed = false) {
   return `${prefix}${absolute.toLocaleString("en-US")}`;
 }
 
+function formatNetPosition(value: number, compact = false) {
+  const direction = value > 0 ? (compact ? "多" : "净多") : value < 0 ? (compact ? "空" : "净空") : (compact ? "平" : "持平");
+  return `${direction} ${format(Math.abs(value))}`;
+}
+
 function sourceFor(asset: CftcAsset) { return asset.reportType === "TFF" ? financialSource : physicalSource; }
 function traderName(name: string) { return traderLabels[name] ?? name; }
 function screenName(asset: CftcAsset) { return displayNames[asset.symbol] ?? asset.name; }
@@ -120,7 +125,7 @@ function AssetCard({ asset, onOpen }: { asset: CftcAsset; onOpen: () => void }) 
       <div className="summary-metrics">
         <div className="metric-long"><span>多头</span><strong>{format(asset.long)}</strong></div>
         <div className="metric-short"><span>空头</span><strong>{format(asset.short)}</strong></div>
-        <div className={net >= 0 ? "metric-long" : "metric-short"}><span>净持仓</span><strong>{format(net, true)}</strong></div>
+        <div className={net >= 0 ? "metric-long" : "metric-short"}><span>{net > 0 ? "净多" : net < 0 ? "净空" : "持平"}</span><strong>{format(Math.abs(net))}</strong></div>
       </div>
       <div className="summary-bar"><i className="bar-long" style={{ width: `${longPct}%` }} /><i className="bar-short" style={{ width: `${100 - longPct}%` }} /></div>
       <div className="summary-labels"><span>多 {longPct}%</span><span>空 {100 - longPct}%</span></div>
@@ -165,7 +170,7 @@ function TraderPositionRow({ row, index }: { row: TraderRow; index: number }) {
   const longPct = share(row.long, row.short);
   return (
     <div className="trader-position-row">
-      <div className="trader-row-heading"><strong><i style={{ background: traderDots[index % traderDots.length] }} />{traderName(row.name)}</strong><span className={net >= 0 ? "red" : "green"}>净 {format(net, true)}</span></div>
+      <div className="trader-row-heading"><strong><i style={{ background: traderDots[index % traderDots.length] }} />{traderName(row.name)}</strong><span className={net >= 0 ? "red" : "green"}>{formatNetPosition(net)}</span></div>
       <div className="trader-numbers"><span>多 <b className="red">{format(row.long)}</b></span><span>空 <b className="green">{format(row.short)}</b></span></div>
       <div className="detail-bar"><i className="bar-long" style={{ width: `${longPct}%` }} /><i className="bar-short" style={{ width: `${100 - longPct}%` }} /></div>
       <div className="detail-percent"><span>{longPct}%</span><span>{100 - longPct}%</span></div>
@@ -269,8 +274,8 @@ function HistoryPanel({ asset }: { asset: CftcAsset }) {
               <div className="history-row" key={point.date}>
                 <span className={index === 0 ? "latest-date" : ""}>2026-{point.date}{index === 0 && <small>最新</small>}</span>
                 <span>{format((oiHistory[asset.symbol] ?? [asset.openInterest])[index] ?? asset.openInterest)}</span>
-                <span className={point.net >= 0 ? "red" : "green"}>{format(point.net, true)}</span>
-                <span className={point.counterpartNet >= 0 ? "red" : "green"}>{format(point.counterpartNet, true)}</span>
+                <span className={point.net >= 0 ? "red" : "green"}>{formatNetPosition(point.net, true)}</span>
+                <span className={point.counterpartNet >= 0 ? "red" : "green"}>{formatNetPosition(point.counterpartNet, true)}</span>
               </div>
             ))}
           </div>
@@ -285,7 +290,7 @@ function ChartPanel({ asset }: { asset: CftcAsset }) {
   const rows = asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }];
   return (
     <div className="tab-panel">
-      <section className="detail-card chart-card"><h3>交易者净持仓对比</h3><p>当前各类交易者净持仓</p><div className="horizontal-bars">{rows.map((row, index) => { const net = row.long - row.short; const max = Math.max(...rows.map((item) => Math.abs(item.long - item.short))); return <div key={row.name}><span>{traderName(row.name)}</span><i style={{ width: `${Math.max(8, Math.abs(net) / max * 100)}%`, background: traderDots[index] }} /><b className={net >= 0 ? "red" : "green"}>{format(net, true)}</b></div>; })}</div></section>
+      <section className="detail-card chart-card"><h3>交易者净持仓对比</h3><p>当前各类交易者净持仓</p><div className="horizontal-bars">{rows.map((row, index) => { const net = row.long - row.short; const max = Math.max(...rows.map((item) => Math.abs(item.long - item.short))); return <div key={row.name}><span>{traderName(row.name)}</span><i style={{ width: `${Math.max(8, Math.abs(net) / max * 100)}%`, background: traderDots[index] }} /><b className={net >= 0 ? "red" : "green"}>{formatNetPosition(net, true)}</b></div>; })}</div></section>
       <section className="detail-card explainer-card"><h3>图表说明</h3><p>红色代表多头，绿色代表空头；净持仓为多头减去空头。多头 ÷（多头 + 空头）为方向持仓比例，不含 spreading。</p></section>
     </div>
   );
@@ -341,10 +346,10 @@ function PremiumAnalysis({ asset }: { asset: CftcAsset }) {
     .sort((a, b) => net >= 0 ? (a.long - a.short) - (b.long - b.short) : (b.long - b.short) - (a.long - a.short))[0];
   const oppositeNet = opposite ? opposite.long - opposite.short : -net;
   const summary = asset.symbol === "XAU"
-    ? `管理基金净多仍处于近26周高位，当前为 ${format(net, true)} 手。多头结构保持优势，但本周扩张速度较前期放缓。`
+    ? `管理基金净多仍处于近26周高位，当前${formatNetPosition(net)} 手。多头结构保持优势，但本周扩张速度较前期放缓。`
     : asset.symbol === "DXY"
       ? `杠杆资金维持净空 ${format(Math.abs(net))} 手，而资管机构方向相反。美元当前处在机构持仓分歧阶段。`
-      : `${asset.coreTrader}当前净持仓 ${format(net, true)} 手，方向持仓中多头占 ${share(asset.long, asset.short)}%，整体呈${structure}。`;
+      : `${asset.coreTrader}当前${formatNetPosition(net)}手，方向持仓中多头占 ${share(asset.long, asset.short)}%，整体呈${structure}。`;
 
   return (
     <div className="premium-analysis" aria-label={`${screenName(asset)}专业版深度解读`}>
@@ -358,11 +363,11 @@ function PremiumAnalysis({ asset }: { asset: CftcAsset }) {
 
       <section className="premium-card context-card"><h3>投机者持仓背景</h3><p>{asset.coreTrader}本周净仓变化 {format(asset.weeklyDelta, true)} 手，当前多头 {format(asset.long)} 手、空头 {format(asset.short)} 手。{net >= 0 ? "资金仍以净多结构为主。" : "资金仍以净空结构为主。"}</p></section>
       <section className="premium-card context-card"><h3>近期动能</h3><p>{asset.weeklyDelta >= 0 ? "核心资金继续向多头方向移动" : "核心资金本周向空头方向移动"}，变化幅度相当于当前净仓的 {Math.round(Math.abs(asset.weeklyDelta) / Math.max(1, Math.abs(net)) * 100)}%。需结合下周总持仓变化确认延续性。</p></section>
-      <section className="premium-card context-card"><h3>商业用户持仓背景</h3><p>{opposite ? traderName(opposite.name) : "对手资金"}当前净持仓 {format(oppositeNet, true)} 手，与核心投机资金{Math.sign(oppositeNet) === Math.sign(net) ? "方向一致" : "方向相反"}，反映出套保盘与趋势资金之间的结构关系。</p></section>
+      <section className="premium-card context-card"><h3>商业用户持仓背景</h3><p>{opposite ? traderName(opposite.name) : "对手资金"}当前{formatNetPosition(oppositeNet)}手，与核心投机资金{Math.sign(oppositeNet) === Math.sign(net) ? "方向一致" : "方向相反"}，反映出套保盘与趋势资金之间的结构关系。</p></section>
 
       <section className="premium-card extremes-card">
         <div className="premium-card-title"><h3>历史极值对比</h3><span>近{history.length || 26}周</span></div>
-        <div className="extreme-grid"><div><span>当前净仓</span><strong className={net >= 0 ? "red" : "green"}>{format(net, true)}</strong></div><div><span>区间最高</span><strong>{format(high, true)}</strong></div><div><span>区间最低</span><strong>{format(low, true)}</strong></div></div>
+        <div className="extreme-grid"><div><span>当前净仓</span><strong className={net >= 0 ? "red" : "green"}>{formatNetPosition(net)}</strong></div><div><span>区间最高</span><strong>{formatNetPosition(high)}</strong></div><div><span>区间最低</span><strong>{formatNetPosition(low)}</strong></div></div>
       </section>
       <p className="premium-disclaimer">以上分析基于CFTC官方公开数据，仅描述持仓结构事实，不构成投资建议</p>
     </div>
@@ -385,7 +390,7 @@ function WeeklyPremiumReport({ onAsset }: { onAsset: (asset: CftcAsset) => void 
       <section className="all-report-section"><h3>跨品种持仓摘要</h3>{reportItems.map((asset) => {
         const net = netOf(asset);
         const label = net > 0 ? "多头主导" : "空头主导";
-        return <button key={asset.symbol} type="button" onClick={() => onAsset(asset)}><i className={asset.weeklyDelta >= 0 ? "up" : "down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)} <em className={net >= 0 ? "bull" : "bear"}>{label}</em></b><small>净仓 {format(net, true)} · 本周 {format(asset.weeklyDelta, true)}</small></span><strong>›</strong></button>;
+        return <button key={asset.symbol} type="button" onClick={() => onAsset(asset)}><i className={asset.weeklyDelta >= 0 ? "up" : "down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)} <em className={net >= 0 ? "bull" : "bear"}>{label}</em></b><small>{formatNetPosition(net)} · 本周 {format(asset.weeklyDelta, true)}</small></span><strong>›</strong></button>;
       })}</section>
       <p className="premium-disclaimer">数据来自CFTC官方公开报告，仅描述持仓结构事实，不构成投资建议</p>
     </div>

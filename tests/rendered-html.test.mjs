@@ -25,6 +25,8 @@ test("server-renders the reference-style CFTC mobile demo", async () => {
   assert.match(html, /官方数据/);
   assert.match(html, /2026-07-14/);
   assert.match(html, /查看黄金完整分析/);
+  assert.match(html, /净空/);
+  assert.doesNotMatch(html, /-105\.7K/);
   assert.match(html, /专业版/);
   assert.match(html, /CFTC 原始说明/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
