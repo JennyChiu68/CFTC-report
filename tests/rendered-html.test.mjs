@@ -24,6 +24,10 @@ test("server-renders the reference-style CFTC mobile demo", async () => {
   assert.match(html, /CFTC 持仓报告/);
   assert.match(html, /官方数据/);
   assert.match(html, /2026-07-14/);
+  assert.match(html, /持仓截至时间/);
+  assert.match(html, /报告发布时间/);
+  assert.match(html, /2026-07-17/);
+  assert.doesNotMatch(html, /同步 \d{2}\/\d{2}/);
   assert.match(html, /查看黄金完整分析/);
   assert.match(html, /净空/);
   assert.doesNotMatch(html, /-105\.7K/);

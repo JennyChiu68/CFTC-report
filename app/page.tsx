@@ -69,11 +69,12 @@ function screenName(asset: CftcAsset) { return displayNames[asset.symbol] ?? ass
 function screenSymbol(asset: CftcAsset) { return displaySymbols[asset.symbol] ?? asset.symbol; }
 function displayReportDate(date: string) { return date.replaceAll("-", "/"); }
 function axisDateLabel(date: string) { const parts = date.split("-"); return parts.length === 3 ? `${parts[1]}/${parts[2]}` : date.replace("-", "/"); }
-function formatSyncTime(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+function reportPublishedDate(reportDate: string) {
+  if (reportDate === reportMeta.asOf) return reportMeta.published;
+  const parts = reportDate.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return reportMeta.published;
+  const published = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 3));
+  return published.toISOString().slice(0, 10);
 }
 function trackEvent(name: string, properties: Record<string, string | number | boolean> = {}) {
   if (typeof window === "undefined") return;
@@ -137,10 +138,11 @@ function AssetCard({ asset, date, onOpen }: { asset: CftcAsset; date: string; on
   </button>;
 }
 
-function HomeView({ filter, setFilter, onOpen, assetList, reportDate, syncedAt, loading, unavailable }: { filter: Filter; setFilter: (filter: Filter) => void; onOpen: (asset: CftcAsset) => void; assetList: CftcAsset[]; reportDate: string; syncedAt?: string; loading: boolean; unavailable: string[] }) {
+function HomeView({ filter, setFilter, onOpen, assetList, reportDate, loading, unavailable }: { filter: Filter; setFilter: (filter: Filter) => void; onOpen: (asset: CftcAsset) => void; assetList: CftcAsset[]; reportDate: string; loading: boolean; unavailable: string[] }) {
   const visibleGroups = groups.filter((group) => filter === "全部" || group.key === filter);
+  const publishedDate = reportPublishedDate(reportDate);
   return <div className="cot-scroll home-scroll">
-    <section className="home-intro"><h1>CFTC 持仓报告</h1><p>持仓截至 {reportDate}（周二） · {loading ? "正在同步官方数据" : `同步 ${formatSyncTime(syncedAt)}`}</p><small>Futures Only · CFTC 通常于周五发布</small></section>
+    <section className="home-intro"><h1>CFTC 持仓报告</h1><div className="report-times"><p><span>持仓截至时间</span><strong>{reportDate}（周二）</strong></p><p><span>报告发布时间</span><strong>{publishedDate}（周五）</strong></p></div><small>Futures Only · {loading ? "正在获取 CFTC 官方数据" : "CFTC 官方数据"}</small></section>
     {unavailable.length > 0 && <div className="data-notice">{unavailable.join("、")} 暂用最近缓存，其余品种已同步</div>}
     <div className="filter-strip" aria-label="品种分类">{filters.map((item) => <button key={item.key} className={filter === item.key ? "active" : ""} onClick={() => { setFilter(item.key); trackEvent("filter", { filter: item.key }); }}>{item.icon && <span>{item.icon}</span>}{item.key}</button>)}</div>
     {visibleGroups.map((group) => <section className="market-group" key={group.key}><div className="group-title"><span>{group.icon}</span><h2>{group.title}</h2><p>{group.subtitle}</p></div><div className="asset-stack">{group.symbols.map((symbol) => { const asset = assetList.find((item) => item.symbol === symbol); return asset ? <AssetCard key={symbol} asset={asset} date={reportDate} onOpen={() => onOpen(asset)} /> : null; })}</div></section>)}
@@ -322,5 +324,5 @@ export default function Home() {
   const assetList = useMemo(() => assets.map((asset) => mergeOfficialAsset(asset, market?.histories[asset.symbol])), [market]); const selected = useMemo(() => assetList.find((asset) => asset.symbol === symbol) ?? assetList[0], [assetList, symbol]); const reportDate = market?.reportDate ?? reportMeta.asOf;
   function unlockPremium() { sessionStorage.setItem("cftc_pro_access", "1"); setPremium(true); trackEvent("pro_unlock", { source: screen }); }
   function openAsset(asset: CftcAsset, openTab: DetailTab = "positions") { setSymbol(asset.symbol); setTab(openTab); setScreen("detail"); trackEvent("open_asset", { symbol: asset.symbol, tab: openTab }); window.scrollTo(0, 0); }
-  return <main className="cot-app"><BrandHeader premium={premium} />{screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} assetList={assetList} reportDate={reportDate} syncedAt={market?.syncedAt} loading={marketLoading} unavailable={market?.unavailable ?? []} />}{screen === "detail" && <DetailView key={selected.symbol} asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} />}{screen === "pro" && <ProView premium={premium} onUnlock={unlockPremium} onAsset={(asset) => openAsset(asset, "positions")} assetList={assetList} reportDate={reportDate} />}<BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => { setScreen("pro"); trackEvent("open_pro"); }} /></main>;
+  return <main className="cot-app"><BrandHeader premium={premium} />{screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} assetList={assetList} reportDate={reportDate} loading={marketLoading} unavailable={market?.unavailable ?? []} />}{screen === "detail" && <DetailView key={selected.symbol} asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} />}{screen === "pro" && <ProView premium={premium} onUnlock={unlockPremium} onAsset={(asset) => openAsset(asset, "positions")} assetList={assetList} reportDate={reportDate} />}<BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => { setScreen("pro"); trackEvent("open_pro"); }} /></main>;
 }
