@@ -253,7 +253,7 @@ function HistoryPanel({ asset }: { asset: CftcAsset }) {
 }
 
 function PositionsPanel({ asset, totalChange }: { asset: CftcAsset; totalChange: number }) {
-  const [changesOpen, setChangesOpen] = useState(false);
+  const [changesOpen, setChangesOpen] = useState(true);
   const rows = asset.breakdown ?? [{ name: asset.coreTrader, long: asset.long, short: asset.short, netChange: asset.weeklyDelta }];
   const max = Math.max(1, ...rows.map((row) => Math.abs(row.long - row.short)));
   return <div className="tab-panel">
