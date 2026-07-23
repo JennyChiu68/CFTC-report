@@ -38,10 +38,12 @@ test("server-renders the reference-style CFTC mobile demo", async () => {
 });
 
 test("ships real multi-asset data and transparent methodology", async () => {
-  const [page, data, historyRoute, css, packageJson] = await Promise.all([
+  const [page, data, historyRoute, insightsRoute, insights, css, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/cftc-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/cftc-service.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/cftc-insights/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/cftc-insights.mjs", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
@@ -50,9 +52,11 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /TFF 原表/);
   assert.match(page, /多头 ÷（多头 \+ 空头）/);
   assert.match(page, /查看完整专业版/);
-  assert.match(page, /持仓结构深度解读/);
+  assert.match(page, /持仓变化归因/);
   assert.match(page, /跨品种变化筛选、历史分位与多周结构解读/);
-  assert.match(page, /本周重要变化/);
+  assert.match(page, /标准化资金异动雷达/);
+  assert.match(page, /持仓变化归因/);
+  assert.match(page, /windowNetChanges/);
   assert.match(page, /const \[changesOpen, setChangesOpen\] = useState\(true\)/);
   assert.match(page, /setSelectedSymbol\(asset\.symbol\); setSection\("analysis"\)/);
   assert.match(page, /市场结构/);
@@ -75,6 +79,13 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(historyRoute, /72hh-3qpy/);
   assert.match(historyRoute, /gpe5-46if/);
   assert.match(historyRoute, /cftc_contract_market_code/);
+  assert.match(insightsRoute, /fetchCftcSnapshots\(asset, 156\)/);
+  assert.match(insightsRoute, /rankStandardizedInsights/);
+  assert.match(insights, /changeToOiPct/);
+  assert.match(insights, /changePercentile52/);
+  assert.match(insights, /zScore/);
+  assert.match(insights, /增多与减空共同推动/);
+  assert.match(insights, /\[1, 4, 13\]/);
   assert.match(css, /max-width: 448px/);
   assert.match(css, /\.cot-bottom-nav/);
   assert.match(css, /\.cot-asset-card/);

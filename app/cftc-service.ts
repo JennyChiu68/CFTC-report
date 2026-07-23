@@ -85,7 +85,7 @@ function transformTff(row: RawRow): CftcSnapshot {
 }
 
 export async function fetchCftcSnapshots(asset: CftcAsset, requestedLimit = 52) {
-  const limit = Math.max(1, Math.min(104, Number.isFinite(requestedLimit) ? requestedLimit : 52));
+  const limit = Math.max(1, Math.min(160, Number.isFinite(requestedLimit) ? requestedLimit : 52));
   const endpoint = new URL(endpoints[asset.reportType]);
   endpoint.searchParams.set("$select", fields[asset.reportType].join(","));
   endpoint.searchParams.set("$where", `cftc_contract_market_code='${asset.contractCode}'`);
