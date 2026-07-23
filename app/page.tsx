@@ -121,7 +121,7 @@ function BrandHeader({ premium }: { premium: boolean }) {
 function BottomNav({ screen, onHome, onPro }: { screen: Screen; onHome: () => void; onPro: () => void }) {
   return <nav className="cot-bottom-nav" aria-label="主导航">
     <button className={screen !== "pro" ? "active" : ""} onClick={onHome}><span className="home-icon">⌂</span><small>品种</small></button>
-    <button className={screen === "pro" ? "active" : ""} onClick={onPro}><span className="pro-icon">✧</span><small>专业版</small></button>
+    <button className={screen === "pro" ? "active" : ""} onClick={onPro}><span className="pro-icon">✧</span><small>动向解读</small></button>
   </nav>;
 }
 
