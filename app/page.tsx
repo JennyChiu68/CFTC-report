@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  buildMarketHighlights,
   classifyStructure,
   describeMultiWeekTrend,
   percentileRank,
   rangePosition,
 } from "./cftc-analysis.mjs";
-import { movementLabel, positionAttribution, windowNetChanges } from "./cftc-insights.mjs";
 import { assets, reportMeta, type CftcAsset, type CftcSnapshot, type HistoryPoint, type TraderRow } from "./cftc-data";
 
 type Screen = "home" | "detail" | "pro";
@@ -20,23 +20,6 @@ type MarketPayload = {
   syncedAt: string;
   histories: Record<string, CftcSnapshot[]>;
   unavailable: string[];
-};
-type RadarInsight = {
-  symbol: string;
-  reportDate: string;
-  currentNet: number;
-  weeklyDelta: number;
-  changeToOiPct: number;
-  changePercentile52: number;
-  zScore: number;
-  change1w: number;
-  change4w: number;
-  change13w: number;
-  flipped: boolean;
-  halfYearExtreme: "high" | "low" | null;
-  threeYearExtreme: "high" | "low" | null;
-  threeYearPercentile: number;
-  summary: string;
 };
 
 const physicalSource = "https://www.cftc.gov/dea/futures/other_lf.htm";
@@ -105,14 +88,11 @@ function snapshotsToHistory(asset: CftcAsset, snapshots: CftcSnapshot[], selecte
   return snapshots.map((snapshot, index) => {
     const counterpart = snapshot.breakdown[asset.reportType === "Disaggregated" ? 0 : 1];
     const third = snapshot.breakdown[asset.reportType === "Disaggregated" ? 1 : 0];
-    const core = snapshot.breakdown.find((row) => row.name === asset.coreTrader);
     return {
       date: snapshot.date,
       net: snapshot.long - snapshot.short,
       counterpartNet: counterpart ? counterpart.long - counterpart.short : 0,
       thirdNet: third ? third.long - third.short : 0,
-      longChange: core?.longChange,
-      shortChange: core?.shortChange,
       categoryNets: snapshot.breakdown.map((row) => ({ name: traderName(row.name), net: row.long - row.short })),
       openInterest: snapshot.openInterest,
       selected: selected && index === 0,
@@ -292,38 +272,24 @@ function PremiumPreview({ variant }: { variant: "detail" | "pro" }) {
 }
 
 function PremiumGate({ preview, onUnlock }: { preview: "detail" | "pro"; onUnlock: () => void }) {
-  return <section className="pro-gate-card"><div className="pro-gate-head"><span className="wand-icon" aria-hidden="true">✧</span><div><h3>专业版内容 <b>PRO</b></h3><p>统一解锁完整周报、历史极值与结构解读</p></div></div><div className={`pro-preview pro-preview-${preview}`}><PremiumPreview variant={preview} /><i className="preview-fade" /></div><div className="pro-features"><div><i className="feature-bars"><b /><b /><b /></i><span><strong>持仓变化归因</strong><small>拆解多头与空头变化，识别净仓移动的主要来源</small></span></div><div><i className="feature-trend">↗</i><span><strong>标准化资金异动雷达</strong><small>结合OI占比、52周分位、Z值、翻转与历史极值筛选</small></span></div><div><i className="feature-report">▤</i><span><strong>每周持仓周报</strong><small>覆盖全部品种，不需要逐项解锁</small></span></div></div><div className="pro-gate-action"><button type="button" onClick={onUnlock}><span className="lock-icon" aria-hidden="true" /> 查看完整专业版</button><p>点击即可查看完整内容；正式版将由金十钻石VIP权益统一解锁</p></div></section>;
+  return <section className="pro-gate-card"><div className="pro-gate-head"><span className="wand-icon" aria-hidden="true">✧</span><div><h3>专业版内容 <b>PRO</b></h3><p>统一解锁完整周报、历史极值与结构解读</p></div></div><div className={`pro-preview pro-preview-${preview}`}><PremiumPreview variant={preview} /><i className="preview-fade" /></div><div className="pro-features"><div><i className="feature-bars"><b /><b /><b /></i><span><strong>持仓结构深度解读</strong><small>以一致口径呈现多周趋势、历史分位和类别分歧</small></span></div><div><i className="feature-trend">↗</i><span><strong>跨品种重要变化</strong><small>自动识别方向翻转、历史极值与单周大幅变化</small></span></div><div><i className="feature-report">▤</i><span><strong>每周持仓周报</strong><small>覆盖全部品种，不需要逐项解锁</small></span></div></div><div className="pro-gate-action"><button type="button" onClick={onUnlock}><span className="lock-icon" aria-hidden="true" /> 查看完整专业版</button><p>点击即可查看完整内容；正式版将由金十钻石VIP权益统一解锁</p></div></section>;
 }
 
 function PremiumAnalysis({ asset }: { asset: CftcAsset }) {
   const net = netOf(asset); const history = asset.history ?? []; const values = history.map((point) => point.net); const sample = values.length ? values : [net]; const low = Math.min(...sample); const high = Math.max(...sample);
   const percentile = percentileRank(sample, net); const marker = Math.max(2, Math.min(98, rangePosition(sample, net))); const structure = classifyStructure(asset.long, asset.short); const trend = describeMultiWeekTrend(history, asset.weeklyDelta);
   const opposite = [...(asset.breakdown ?? [])].filter((row) => row.name !== asset.coreTrader).sort((a, b) => Math.abs((b.long - b.short)) - Math.abs((a.long - a.short)))[0]; const oppositeNet = opposite ? opposite.long - opposite.short : 0;
-  const core = asset.breakdown?.find((row) => row.name === asset.coreTrader);
-  const attribution = positionAttribution({ longChange: core?.longChange, shortChange: core?.shortChange, currentNet: net });
-  const windows = windowNetChanges(history, asset.weeklyDelta) as Array<{ weeks: number; actualWeeks: number; change: number; alignedWeeks: number }>;
-  const longAction = attribution.longChange > 0 ? "多头增加" : attribution.longChange < 0 ? "多头减少" : "多头持平";
-  const shortAction = attribution.shortChange > 0 ? "空头增加" : attribution.shortChange < 0 ? "空头减少" : "空头持平";
-  const attributionSummary = attribution.shares
-    ? `${attribution.headline} ${format(Math.abs(attribution.netChange))}手，其中${attribution.shares.long}%来自${longAction}，${attribution.shares.short}%来自${shortAction}，属于“${attribution.stateLabel}”。`
-    : `${attribution.headline} ${format(Math.abs(attribution.netChange))}手；${longAction} ${format(Math.abs(attribution.longChange))}手，${shortAction} ${format(Math.abs(attribution.shortChange))}手，属于“${attribution.stateLabel}”。`;
   return <div className="premium-analysis" aria-label={`${screenName(asset)}专业版深度解读`}><section className="premium-card structure-card"><div className="premium-card-title"><h3>市场结构</h3><div><span className={`structure-badge ${net >= 0 ? "bull" : "bear"}`}>{structure}</span><span className={trend.direction >= 0 ? "trend-up" : "trend-down"}>{trend.direction >= 0 ? "↗" : "↘"} {trend.label}</span></div></div><p>{asset.coreTrader}当前{formatNetPosition(net)}手，多头占方向持仓的 {share(asset.long, asset.short)}%；在近{sample.length}周样本中处于 {percentile}% 历史分位。</p><div className="percentile-scale"><div><span>区间低位</span><strong>{percentile}%历史分位</strong><span>区间高位</span></div><i><b style={{ left: `${marker}%` }} /></i></div></section>
     {(percentile >= 85 || percentile <= 15) && sample.length >= 13 && <section className="premium-warning">当前核心资金净仓进入近{sample.length}周样本的极值区域。该提示只描述统计位置，不代表方向即将反转。</section>}
-    <section className="premium-card attribution-card"><div className="premium-card-title"><h3>持仓变化归因</h3><span className={attribution.netChange >= 0 ? "attribution-up" : "attribution-down"}>{attribution.stateLabel}</span></div>{attribution.available ? <><p className="attribution-summary">{attributionSummary}</p><div className="attribution-sides"><div><span>多头变化</span><strong className={attribution.longChange >= 0 ? "red" : "green"}>{format(attribution.longChange, true)}</strong><small>{longAction}</small></div><div><span>空头变化</span><strong className={attribution.shortChange >= 0 ? "red" : "green"}>{format(attribution.shortChange, true)}</strong><small>{shortAction}</small></div></div>{attribution.shares && <div className="attribution-share"><i><b style={{ width: `${attribution.shares.long}%` }} /><em style={{ width: `${attribution.shares.short}%` }} /></i><div><span>{longAction} {attribution.shares.long}%</span><span>{shortAction} {attribution.shares.short}%</span></div></div>}</> : <p className="attribution-empty">当前缓存缺少多头与空头的分项变化，暂只展示净仓变化；官方数据恢复后会自动补全归因。</p>}<div className="attribution-windows">{windows.map((item) => <div key={item.weeks}><span>{item.weeks}周</span><strong className={item.change >= 0 ? "red" : "green"}>{format(item.change, true)}</strong><small>{item.actualWeeks ? `${movementLabel(net, item.change)} · ${item.alignedWeeks}/${item.actualWeeks}周同向` : "历史不足"}</small></div>)}</div><p className="attribution-note">仅依据分类持仓的增减变化进行结构归因，不代表具体交易者的开仓、平仓或交易动机。</p></section>
+    <section className="premium-card context-card"><h3>核心类别持仓背景</h3><p>{asset.coreTrader}本周净仓变化 {format(asset.weeklyDelta, true)} 手，当前多头 {format(asset.long)} 手、空头 {format(asset.short)} 手，结构为{formatNetPosition(net)}。</p></section>
+    <section className="premium-card context-card"><h3>近期动能</h3><p>{trend.label}。本周变化约相当于当前净仓绝对值的 {Math.round(Math.abs(asset.weeklyDelta) / Math.max(1, Math.abs(net)) * 100)}%，是否延续仍需结合下一期总持仓和分项变化确认。</p></section>
     <section className="premium-card context-card"><h3>对手类别持仓背景</h3><p>{opposite ? traderName(opposite.name) : "其他类别"}当前{formatNetPosition(oppositeNet)}手，与核心类别{Math.sign(oppositeNet) === Math.sign(net) ? "方向一致" : "方向相反"}。这只表示持仓结构关系，不代表该类别的具体交易动机。</p></section>
     <section className="premium-card extremes-card"><div className="premium-card-title"><h3>历史极值对比</h3><span>近{sample.length}周</span></div><div className="extreme-grid"><div><span>当前净仓</span><strong className={net >= 0 ? "red" : "green"}>{formatNetPosition(net)}</strong></div><div><span>区间最高</span><strong>{formatNetPosition(high)}</strong></div><div><span>区间最低</span><strong>{formatNetPosition(low)}</strong></div></div></section><p className="premium-disclaimer">分析基于CFTC Futures Only公开数据，只描述统计与结构事实，不构成投资建议</p></div>;
 }
 
-function radarTag(insight: RadarInsight) {
-  if (insight.flipped) return "方向翻转";
-  if (insight.threeYearExtreme) return "3年极值";
-  if (insight.halfYearExtreme) return "半年极值";
-  if (insight.changePercentile52 >= 90) return "异常变动";
-  return "显著变化";
-}
-
-function WeeklyPremiumReport({ assetList, reportDate, onAsset, radar, radarLoading, radarError }: { assetList: CftcAsset[]; reportDate: string; onAsset: (asset: CftcAsset) => void; radar: RadarInsight[]; radarLoading: boolean; radarError: boolean }) {
-  return <div className="weekly-premium-report"><div className="weekly-report-meta"><span>持仓截至: {displayReportDate(reportDate)}</span><strong>{radarLoading ? "正在计算异动" : `${radar.length} 个标准化异动`}</strong></div><section className="radar-card"><header><span>✦</span><div><b>标准化资金异动雷达</b><small>跨品种统一口径比较</small></div></header>{radarLoading && <div className="radar-status">正在计算52周变动分位、Z值与历史极值…</div>}{radarError && !radarLoading && <div className="radar-status error">标准化雷达暂时不可用，请稍后刷新</div>}{!radarLoading && !radarError && radar.map((insight) => { const asset = assetList.find((item) => item.symbol === insight.symbol); if (!asset) return null; return <button key={insight.symbol} type="button" onClick={() => onAsset(asset)}><div className="radar-main"><i className={insight.weeklyDelta >= 0 ? "up" : "down"}>{insight.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)} <em>{radarTag(insight)}</em></b><small>{insight.summary}</small></span><strong className={insight.weeklyDelta >= 0 ? "red" : "green"}>{format(insight.weeklyDelta, true)}</strong></div><div className="radar-metrics"><span>变化/OI <b>{insight.changeToOiPct > 0 ? "+" : ""}{insight.changeToOiPct.toFixed(2)}%</b></span><span>52周强度 <b>{insight.changePercentile52}%</b></span><span>Z值 <b>{insight.zScore > 0 ? "+" : ""}{insight.zScore.toFixed(1)}σ</b></span></div><div className="radar-windows"><span>1周 <b>{format(insight.change1w, true)}</b></span><span>4周 <b>{format(insight.change4w, true)}</b></span><span>13周 <b>{format(insight.change13w, true)}</b></span></div></button>; })}</section><section className="all-report-section"><h3>全部品种持仓摘要</h3>{assetList.map((asset) => { const net = netOf(asset); const structure = classifyStructure(asset.long, asset.short); return <button key={asset.symbol} type="button" onClick={() => onAsset(asset)}><i className={asset.weeklyDelta >= 0 ? "up" : "down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)} <em className={net >= 0 ? "bull" : "bear"}>{structure}</em></b><small>{formatNetPosition(net)} · 本周 {format(asset.weeklyDelta, true)}</small></span><strong>›</strong></button>; })}</section><p className="premium-disclaimer">雷达按变化/OI、52周变动分位、Z值、方向翻转与历史极值综合排序；不推断交易者的具体动机</p></div>;
+function WeeklyPremiumReport({ assetList, reportDate, onAsset }: { assetList: CftcAsset[]; reportDate: string; onAsset: (asset: CftcAsset) => void }) {
+  const important = buildMarketHighlights(assetList, 3) as Array<{ asset: CftcAsset; reason: string }>;
+  return <div className="weekly-premium-report"><div className="weekly-report-meta"><span>持仓日期: {displayReportDate(reportDate)}</span><strong>{important.length} 个重要变化</strong></div><section className="important-report-card"><header><span>✦</span> 本周重要变化</header>{important.map(({ asset, reason }) => <button key={asset.symbol} type="button" onClick={() => onAsset(asset)}><i className={asset.weeklyDelta >= 0 ? "up" : "down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)}</b><small>{reason}</small></span><strong className={asset.weeklyDelta >= 0 ? "red" : "green"}>{format(asset.weeklyDelta, true)}</strong></button>)}</section><section className="all-report-section"><h3>全部品种持仓摘要</h3>{assetList.map((asset) => { const net = netOf(asset); const structure = classifyStructure(asset.long, asset.short); return <button key={asset.symbol} type="button" onClick={() => onAsset(asset)}><i className={asset.weeklyDelta >= 0 ? "up" : "down"}>{asset.weeklyDelta >= 0 ? "↗" : "↘"}</i><span><b>{screenName(asset)} <em className={net >= 0 ? "bull" : "bear"}>{structure}</em></b><small>{formatNetPosition(net)} · 本周 {format(asset.weeklyDelta, true)}</small></span><strong>›</strong></button>; })}</section><p className="premium-disclaimer">排序综合方向翻转、历史极值与单周变化幅度；不推断交易者的具体动机</p></div>;
 }
 
 function DeepPremiumView({ assetList, selectedSymbol, onSelect, onAsset }: { assetList: CftcAsset[]; selectedSymbol: string; onSelect: (symbol: string) => void; onAsset: (asset: CftcAsset) => void }) {
@@ -348,26 +314,8 @@ function DetailView({ asset, tab, setTab, onBack }: { asset: CftcAsset; tab: Det
 function ProView({ premium, onUnlock, onAsset, assetList, reportDate }: { premium: boolean; onUnlock: () => void; onAsset: (asset: CftcAsset) => void; assetList: CftcAsset[]; reportDate: string }) {
   const [section, setSection] = useState<"weekly" | "analysis">("weekly");
   const [selectedSymbol, setSelectedSymbol] = useState("XAU");
-  const [radar, setRadar] = useState<RadarInsight[]>([]);
-  const [radarError, setRadarError] = useState(false);
-  const radarLoading = premium && !radar.length && !radarError;
-  useEffect(() => {
-    if (!premium) return;
-    const controller = new AbortController();
-    fetch("/api/cftc-insights", { signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error("insights unavailable");
-      return response.json() as Promise<{ insights?: RadarInsight[] }>;
-    }).then((payload) => {
-      if (!payload.insights?.length) throw new Error("insights empty");
-      setRadar(payload.insights);
-    }).catch((error: unknown) => {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setRadarError(true);
-    });
-    return () => controller.abort();
-  }, [premium]);
   function openAnalysis(asset: CftcAsset) { setSelectedSymbol(asset.symbol); setSection("analysis"); trackEvent("pro_drilldown", { symbol: asset.symbol }); }
-  return <div className="cot-scroll pro-page"><section className="pro-title"><div><h1>专业版</h1><span>PRO</span></div><p>跨品种变化筛选、历史分位与多周结构解读</p></section><div className="pro-segments" role="tablist"><button type="button" role="tab" aria-selected={section === "weekly"} className={section === "weekly" ? "active" : ""} onClick={() => { setSection("weekly"); trackEvent("pro_section", { section: "weekly" }); }}>持仓周报</button><button type="button" role="tab" aria-selected={section === "analysis"} className={section === "analysis" ? "active" : ""} onClick={() => { setSection("analysis"); trackEvent("pro_section", { section: "analysis" }); }}>深度解读</button></div><div className="pro-gate-wrap">{premium ? section === "weekly" ? <WeeklyPremiumReport assetList={assetList} reportDate={reportDate} onAsset={openAnalysis} radar={radar} radarLoading={radarLoading} radarError={radarError} /> : <DeepPremiumView assetList={assetList} selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol} onAsset={onAsset} /> : <PremiumGate preview="pro" onUnlock={onUnlock} />}</div></div>;
+  return <div className="cot-scroll pro-page"><section className="pro-title"><div><h1>专业版</h1><span>PRO</span></div><p>跨品种变化筛选、历史分位与多周结构解读</p></section><div className="pro-segments" role="tablist"><button type="button" role="tab" aria-selected={section === "weekly"} className={section === "weekly" ? "active" : ""} onClick={() => { setSection("weekly"); trackEvent("pro_section", { section: "weekly" }); }}>持仓周报</button><button type="button" role="tab" aria-selected={section === "analysis"} className={section === "analysis" ? "active" : ""} onClick={() => { setSection("analysis"); trackEvent("pro_section", { section: "analysis" }); }}>深度解读</button></div><div className="pro-gate-wrap">{premium ? section === "weekly" ? <WeeklyPremiumReport assetList={assetList} reportDate={reportDate} onAsset={openAnalysis} /> : <DeepPremiumView assetList={assetList} selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol} onAsset={onAsset} /> : <PremiumGate preview="pro" onUnlock={onUnlock} />}</div></div>;
 }
 
 export default function Home() {
