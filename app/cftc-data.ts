@@ -1,4 +1,4 @@
-export type MarketGroup = "贵金属" | "能源" | "外汇" | "股指" | "加密资产";
+export type MarketGroup = "贵金属" | "能源" | "外汇" | "股指";
 
 export type TraderRow = {
   name: string;
@@ -301,18 +301,6 @@ export const assets: CftcAsset[] = [
     short: 93073,
     weeklyDelta: 20539,
   },
-  {
-    symbol: "BTC",
-    name: "比特币",
-    group: "加密资产",
-    contractCode: "133741",
-    reportType: "TFF",
-    coreTrader: "杠杆基金",
-    openInterest: 22216,
-    long: 3181,
-    short: 11270,
-    weeklyDelta: -650,
-  },
 ];
 
 export const groupOptions: Array<"全部" | MarketGroup> = [
@@ -321,5 +309,4 @@ export const groupOptions: Array<"全部" | MarketGroup> = [
   "能源",
   "外汇",
   "股指",
-  "加密资产",
 ];

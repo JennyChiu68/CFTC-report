@@ -12,7 +12,7 @@ import { assets, reportMeta, type CftcAsset, type CftcSnapshot, type HistoryPoin
 
 type Screen = "home" | "detail" | "pro";
 type DetailTab = "positions" | "history";
-type Filter = "全部" | "贵金属" | "能源" | "外汇" | "股指/加密";
+type Filter = "全部" | "贵金属" | "能源" | "外汇" | "股指";
 type MarketPayload = {
   source: string;
   scope: string;
@@ -28,14 +28,14 @@ const methodSource = "https://www.cftc.gov/MarketReports/CommitmentsofTraders/Ab
 
 const filters: Array<{ key: Filter; icon?: string }> = [
   { key: "全部" }, { key: "贵金属", icon: "🥇" }, { key: "能源", icon: "⚡" },
-  { key: "外汇", icon: "💱" }, { key: "股指/加密", icon: "📈" },
+  { key: "外汇", icon: "💱" }, { key: "股指", icon: "📈" },
 ];
 
 const groups = [
   { key: "贵金属" as const, icon: "🥇", title: "贵金属", subtitle: "黄金、白银、铜", symbols: ["XAU", "XAG", "HG"] },
   { key: "能源" as const, icon: "⚡", title: "能源", subtitle: "原油、天然气、布伦特", symbols: ["CL", "NG", "BZ"] },
   { key: "外汇" as const, icon: "💱", title: "外汇", subtitle: "美元指数、欧元、英镑等", symbols: ["DXY", "EUR", "GBP", "JPY", "AUD", "CAD"] },
-  { key: "股指/加密" as const, icon: "📈", title: "股指/加密", subtitle: "标普500、纳斯达克、比特币", symbols: ["ES", "NQ", "BTC"] },
+  { key: "股指" as const, icon: "📈", title: "股指", subtitle: "标普500、纳斯达克100", symbols: ["ES", "NQ"] },
 ];
 
 const displayNames: Record<string, string> = { CL: "原油(WTI)", ES: "标普500", NQ: "纳斯达克100" };
@@ -114,8 +114,8 @@ function mergeOfficialAsset(asset: CftcAsset, snapshots?: CftcSnapshot[]) {
   };
 }
 
-function BrandHeader({ premium }: { premium: boolean }) {
-  return <header className="cot-header"><div className="cot-brand"><span className="brand-chart"><i /><i /><i /></span><div><strong>CFTC持仓动向</strong></div></div>{premium ? <span className="premium-status"><b>✧</b> PRO</span> : <span className="official-status"><i /> 官方数据</span>}</header>;
+function BrandHeader() {
+  return <header className="cot-header"><div className="cot-brand"><span className="brand-chart"><i /><i /><i /></span><div><strong>CFTC持仓动向</strong></div></div><span className="premium-status"><b>✧</b> 钻石 VIP</span></header>;
 }
 
 function BottomNav({ screen, onHome, onPro }: { screen: Screen; onHome: () => void; onPro: () => void }) {
@@ -271,8 +271,12 @@ function PremiumPreview({ variant }: { variant: "detail" | "pro" }) {
   return <div className="premium-list-preview" aria-hidden="true">{["黄金 · 结构分析", "欧元 · 极值提醒", "原油(WTI) · 周度变化", "标普500 · 跨类别对比"].map((item) => <div key={item}><i /><span><strong>{item}</strong><small>████████████████████</small></span></div>)}</div>;
 }
 
-function PremiumGate({ preview, onUnlock }: { preview: "detail" | "pro"; onUnlock: () => void }) {
-  return <section className="pro-gate-card"><div className="pro-gate-head"><span className="wand-icon" aria-hidden="true">✧</span><div><h3>专业版内容 <b>PRO</b></h3><p>统一解锁完整周报、历史极值与结构解读</p></div></div><div className={`pro-preview pro-preview-${preview}`}><PremiumPreview variant={preview} /><i className="preview-fade" /></div><div className="pro-features"><div><i className="feature-bars"><b /><b /><b /></i><span><strong>持仓结构深度解读</strong><small>以一致口径呈现多周趋势、历史分位和类别分歧</small></span></div><div><i className="feature-trend">↗</i><span><strong>跨品种重要变化</strong><small>自动识别方向翻转、历史极值与单周大幅变化</small></span></div><div><i className="feature-report">▤</i><span><strong>每周持仓周报</strong><small>覆盖全部品种，不需要逐项解锁</small></span></div></div><div className="pro-gate-action"><button type="button" onClick={onUnlock}><span className="lock-icon" aria-hidden="true" /> 查看完整专业版</button><p>点击即可查看完整内容；正式版将由金十钻石VIP权益统一解锁</p></div></section>;
+function PremiumGate({ preview, onUnlock, fullProduct = false }: { preview: "detail" | "pro"; onUnlock: () => void; fullProduct?: boolean }) {
+  return <section className="pro-gate-card"><div className="pro-gate-head"><span className="wand-icon" aria-hidden="true">✧</span><div><h3>{fullProduct ? "钻石VIP专享功能" : "专业版内容"} <b>VIP</b></h3><p>{fullProduct ? "解锁全部品种、持仓数据、历史趋势与深度解读" : "统一解锁完整周报、历史极值与结构解读"}</p></div></div><div className={`pro-preview pro-preview-${preview}`}><PremiumPreview variant={preview} /><i className="preview-fade" /></div><div className="pro-features">{fullProduct && <div><i className="feature-report">▤</i><span><strong>完整CFTC持仓数据</strong><small>查看全部支持品种、分类持仓和周度变化</small></span></div>}<div><i className="feature-bars"><b /><b /><b /></i><span><strong>持仓结构深度解读</strong><small>以一致口径呈现多周趋势、历史分位和类别分歧</small></span></div><div><i className="feature-trend">↗</i><span><strong>跨品种重要变化</strong><small>自动识别方向翻转、历史极值与单周大幅变化</small></span></div>{!fullProduct && <div><i className="feature-report">▤</i><span><strong>每周持仓周报</strong><small>覆盖全部品种，不需要逐项解锁</small></span></div>}</div><div className="pro-gate-action"><button type="button" onClick={onUnlock}><span className="lock-icon" aria-hidden="true" /> {fullProduct ? "预览完整功能" : "查看完整专业版"}</button><p>{fullProduct ? "当前为产品演示；正式上线后由金十账号与钻石VIP权益验证" : "正式版将由金十钻石VIP权益统一解锁"}</p></div></section>;
+}
+
+function FullAccessGate({ onUnlock }: { onUnlock: () => void }) {
+  return <div className="cot-scroll pro-page full-access-page"><section className="pro-title"><div><h1>CFTC持仓动向</h1><span>钻石 VIP</span></div><p>完整功能仅面向金十钻石VIP用户开放</p></section><div className="pro-gate-wrap"><PremiumGate preview="pro" onUnlock={onUnlock} fullProduct /></div></div>;
 }
 
 function PremiumAnalysis({ asset }: { asset: CftcAsset }) {
@@ -324,5 +328,6 @@ export default function Home() {
   const assetList = useMemo(() => assets.map((asset) => mergeOfficialAsset(asset, market?.histories[asset.symbol])), [market]); const selected = useMemo(() => assetList.find((asset) => asset.symbol === symbol) ?? assetList[0], [assetList, symbol]); const reportDate = market?.reportDate ?? reportMeta.asOf;
   function unlockPremium() { sessionStorage.setItem("cftc_pro_access", "1"); setPremium(true); trackEvent("pro_unlock", { source: screen }); }
   function openAsset(asset: CftcAsset, openTab: DetailTab = "positions") { setSymbol(asset.symbol); setTab(openTab); setScreen("detail"); trackEvent("open_asset", { symbol: asset.symbol, tab: openTab }); window.scrollTo(0, 0); }
-  return <main className="cot-app"><BrandHeader premium={premium} />{screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} assetList={assetList} reportDate={reportDate} loading={marketLoading} unavailable={market?.unavailable ?? []} />}{screen === "detail" && <DetailView key={selected.symbol} asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} />}{screen === "pro" && <ProView premium={premium} onUnlock={unlockPremium} onAsset={(asset) => openAsset(asset, "positions")} assetList={assetList} reportDate={reportDate} />}<BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => { setScreen("pro"); trackEvent("open_pro"); }} /></main>;
+  if (!premium) return <main className="cot-app"><BrandHeader /><FullAccessGate onUnlock={unlockPremium} /></main>;
+  return <main className="cot-app"><BrandHeader />{screen === "home" && <HomeView filter={filter} setFilter={setFilter} onOpen={openAsset} assetList={assetList} reportDate={reportDate} loading={marketLoading} unavailable={market?.unavailable ?? []} />}{screen === "detail" && <DetailView key={selected.symbol} asset={selected} tab={tab} setTab={setTab} onBack={() => setScreen("home")} />}{screen === "pro" && <ProView premium={premium} onUnlock={unlockPremium} onAsset={(asset) => openAsset(asset, "positions")} assetList={assetList} reportDate={reportDate} />}<BottomNav screen={screen} onHome={() => setScreen("home")} onPro={() => { setScreen("pro"); trackEvent("open_pro"); }} /></main>;
 }

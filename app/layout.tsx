@@ -4,18 +4,19 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "CFTC持仓动向",
   description:
-    "CFTC 官方持仓动向移动端分析工具，公开查看持仓与历史趋势，专业版提供深度解读。",
+    "金十钻石VIP专享的CFTC持仓动向分析工具，提供持仓数据、历史趋势与深度解读。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
   openGraph: {
     title: "CFTC持仓动向",
-    description: "CFTC 官方持仓动向移动端分析工具",
+    description: "金十钻石VIP专享的CFTC持仓动向分析工具",
   },
   twitter: {
     card: "summary",
     title: "CFTC持仓动向",
+    description: "金十钻石VIP专享的CFTC持仓动向分析工具",
   },
 };
 
