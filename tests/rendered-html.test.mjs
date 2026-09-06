@@ -21,17 +21,19 @@ test("server-renders the reference-style CFTC mobile demo", async () => {
 
   const html = await response.text();
   assert.match(html, /CFTC持仓动向/);
-  assert.match(html, /钻石VIP专享功能/);
-  assert.match(html, /完整功能仅面向金十钻石VIP用户开放/);
-  assert.match(html, /预览完整功能/);
-  assert.doesNotMatch(html, /CFTC 持仓报告/);
-  assert.doesNotMatch(html, /持仓截至时间/);
-  assert.doesNotMatch(html, /报告发布时间/);
+  assert.match(html, /钻石 VIP/);
+  assert.doesNotMatch(html, /钻石VIP专享功能|预览完整功能/);
+  assert.match(html, /CFTC 持仓报告/);
+  assert.match(html, /持仓截至时间/);
+  assert.match(html, /报告发布时间/);
   assert.doesNotMatch(html, /同步 \d{2}\/\d{2}/);
-  assert.doesNotMatch(html, /查看黄金完整分析/);
+  assert.match(html, /查看黄金完整分析/);
+  assert.equal((html.match(/class="cot-asset-card"/g) ?? []).length, 14);
+  assert.match(html, /2026-09-01/);
+  assert.match(html, /2026-09-04/);
   assert.doesNotMatch(html, /-105\.7K/);
-  assert.match(html, /完整CFTC持仓数据/);
-  assert.doesNotMatch(html, /CFTC 原始说明/);
+  assert.match(html, /动向解读/);
+  assert.match(html, /CFTC 原始说明/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 
@@ -47,9 +49,6 @@ test("ships real multi-asset data and transparent methodology", async () => {
   assert.match(page, /Disaggregated 原表/);
   assert.match(page, /TFF 原表/);
   assert.match(page, /多头 ÷（多头 \+ 空头）/);
-  assert.match(page, /预览完整功能/);
-  assert.match(page, /钻石VIP专享功能/);
-  assert.match(page, /持仓结构深度解读/);
   assert.match(page, /跨品种变化筛选、历史分位与多周结构解读/);
   assert.match(page, /本周重要变化/);
   assert.match(page, /const \[changesOpen, setChangesOpen\] = useState\(true\)/);
