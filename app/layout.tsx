@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CFTC持仓动向",
+  title: "CFTC持仓报告",
   description:
     "金十钻石VIP专享的CFTC持仓动向分析工具，提供持仓数据、历史趋势与深度解读。",
   icons: {
@@ -10,12 +10,12 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg",
   },
   openGraph: {
-    title: "CFTC持仓动向",
+    title: "CFTC持仓报告",
     description: "金十钻石VIP专享的CFTC持仓动向分析工具",
   },
   twitter: {
     card: "summary",
-    title: "CFTC持仓动向",
+    title: "CFTC持仓报告",
     description: "金十钻石VIP专享的CFTC持仓动向分析工具",
   },
 };
