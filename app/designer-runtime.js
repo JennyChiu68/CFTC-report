@@ -73,11 +73,10 @@ const requests = new AbortController();
 let disposed = false;
 let selectedReportDate = null;
 let pendingDate = null;
-let statusText = "正在更新官方数据；当前为 " + savedReportMeta.asOf + " 快照。";
+let statusText = "";
 const statusNotice = document.createElement("div");
-statusNotice.className = "notice data-status";
+statusNotice.className = "notice";
 statusNotice.setAttribute("role", "status");
-root.querySelector(".hero").after(statusNotice);
 
 function refreshAssets() {
   assets = savedAssets.map(asset => {
@@ -248,6 +247,11 @@ function rangePosition(values, current) {
 function describeMultiWeekTrend(history, weeklyDelta) {
   const recent = history?.slice(0, 4).map((point) => point.net) || [];
   if (recent.length < 3) return { label: weeklyDelta >= 0 ? "本周净仓回升" : "本周净仓回落", direction: weeklyDelta >= 0 ? 1 : -1 };
+  if (recent.length === 4) {
+    const changes = recent.slice(0, 3).map((net, index) => net - recent[index + 1]);
+    if (changes.every(change => change > 0)) return { label: "连续3周增多", direction: 1 };
+    if (changes.every(change => change < 0)) return { label: "连续3周减少", direction: -1 };
+  }
   const direction = recent[0] - recent[recent.length - 1];
   if (direction > 0) return { label: "近几周净仓抬升", direction: 1 };
   if (direction < 0) return { label: "近几周净仓回落", direction: -1 };
@@ -836,7 +840,7 @@ function initCharts() {
   const fanEl = root.querySelector("#fanChart");
   const visible = (history.length ? history.slice(0, Math.min(state.weeks, history.length)) : [{ date: reportMeta.asOf.slice(5), openInterest: asset.openInterest }]).reverse();
   const historyEl = root.querySelector("#historyStackedChart");
-  const dates = visible.map((point) => point.date);
+  const dates = visible.map((point) => point.date.slice(-5));
 
   if (fanEl) {
     const fanChart = echarts.init(fanEl);
@@ -951,8 +955,11 @@ function dataZoomOption() {
 function render() {
   refreshAssets();
   clearCharts();
-  statusNotice.textContent = statusText;
-  statusNotice.hidden = !statusText;
+  statusNotice.remove();
+  if (statusText) {
+    statusNotice.textContent = statusText;
+    root.querySelector(".hero").after(statusNotice);
+  }
   setHeader();
   renderScreenTabs();
   if (state.screen === "home") renderHome();
@@ -1094,7 +1101,7 @@ function closeSheets() {
 function openHelp(kind) {
   const copy = kind === "method"
     ? "净持仓＝多头－空头；方向比例＝多头 ÷（多头 + 空头），不含 spreading。CFTC 分类按交易者主要业务目的划分，数据本身不能说明某一笔持仓的具体交易动机。"
-    : "持仓日期为周二，CFTC通常于周五发布。Disaggregated 适用于实物商品，TFF 适用于金融期货。历史图表与表格展示各类别多头与套利持仓之和，总计等于总持仓量；净仓圆环展示各类绝对净仓占比，不表示市场份额。";
+    : "持仓日期为周二，CFTC通常于周五发布。Disaggregated 适用于实物商品，TFF 适用于金融期货。页面保留官方原表入口，便于核验。";
   root.querySelector("#helpBody").innerHTML = `<p class="sheet-copy">${copy}</p>`;
   openSheet("helpSheet");
 }
@@ -1108,25 +1115,39 @@ function renderDateWheel() {
   const dates = availableDates();
   const current = pendingDate || dates[0] || reportMeta.asOf;
   const [year, month, day] = current.split("-");
+  const shiftWeek = direction => {
+    const date = new Date(current + "T00:00:00Z");
+    date.setUTCDate(date.getUTCDate() + direction * 7);
+    return date.toISOString().slice(0, 10);
+  };
+  const previousWeek = shiftWeek(-1);
+  const nextWeek = shiftWeek(1);
   const columns = [
-    [...new Set(dates.map(date => date.slice(0, 4)))],
-    [...new Set(dates.filter(date => date.startsWith(year)).map(date => date.slice(5, 7)))],
-    dates.filter(date => date.startsWith(year + "-" + month)).map(date => date.slice(8, 10)),
+    [String(Number(year) - 1), year, String(Number(year) + 1)],
+    [String((Number(month) + 10) % 12 + 1).padStart(2, "0"), month, String(Number(month) % 12 + 1).padStart(2, "0")],
+    [previousWeek.slice(8), day, nextWeek.slice(8)],
   ];
-  const selected = [year, month, day];
   const wheel = root.querySelector(".date-wheel");
   wheel.removeAttribute("aria-hidden");
   wheel.innerHTML = columns.map((values, index) => {
-    const ordered = [...values].sort();
-    const active = ordered.indexOf(selected[index]);
-    const visible = [ordered[active - 1], ordered[active], ordered[active + 1]];
-    return `<div class="date-wheel__column" role="group" aria-label="${["年份", "月份", "报告日"][index]}">${visible.map(value => value ? `<button type="button" class="date-wheel__option ${value === selected[index] ? "is-active" : ""}" aria-pressed="${value === selected[index]}" data-date-part="${index}" data-date-value="${value}">${Number(value)}${["年", "月", "日"][index]}</button>` : '<span class="date-wheel__option" aria-hidden="true"></span>').join("")}</div>`;
+    return `<div class="date-wheel__column">${values.map((value, slot) => {
+      const target = index === 0 ? dates.find(date => date.startsWith(value))
+        : index === 1 ? dates.find(date => date.startsWith(year + "-" + value))
+        : [previousWeek, current, nextWeek][slot];
+      const available = !!target && dates.includes(target);
+      return `<span class="date-wheel__option${slot === 1 ? " is-active" : ""}" role="button" tabindex="${available ? 0 : -1}" aria-disabled="${!available}" data-date-target="${available ? target : ""}">${Number(value)}${["年", "月", "日"][index]}</span>`;
+    }).join("")}</div>`;
   }).join("");
-  wheel.querySelectorAll("[data-date-part]").forEach(button => button.onclick = () => {
-    const index = Number(button.dataset.datePart);
-    const value = button.dataset.dateValue;
-    pendingDate = dates.find(date => index === 0 ? date.startsWith(value) : index === 1 ? date.startsWith(year + "-" + value) : date === year + "-" + month + "-" + value);
-    renderDateWheel();
+  wheel.querySelectorAll("[data-date-target]").forEach(option => {
+    const select = () => {
+      if (!option.dataset.dateTarget) return;
+      pendingDate = option.dataset.dateTarget;
+      renderDateWheel();
+    };
+    option.onclick = select;
+    option.onkeydown = event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); }
+    };
   });
 }
 
@@ -1141,27 +1162,7 @@ root.querySelector("#dateSelector").addEventListener("click", () => {
   openSheet("dateSheet");
 });
 root.querySelectorAll("[data-sheet]").forEach((button) => {
-  button.addEventListener("click", async () => {
-    const action = button.textContent.trim();
-    const sheet = root.querySelector("#actionSheet");
-    sheet.querySelector(".j-bottom-sheet__title").textContent = action;
-    let text = "此操作需要金十小程序支持，当前独立网页版暂不可用。";
-    if (action === "分享") {
-      try {
-        if (navigator.share) {
-          await navigator.share({ title: document.title, url: window.location.href });
-          return;
-        }
-        await navigator.clipboard.writeText(window.location.href);
-        text = "页面链接已复制，可粘贴分享。";
-      } catch (error) {
-        if (error.name === "AbortError") return;
-        text = "请复制浏览器地址栏中的链接进行分享。";
-      }
-    }
-    sheet.querySelector(".sheet-copy").textContent = text;
-    openSheet(button.dataset.sheet);
-  });
+  button.addEventListener("click", () => openSheet(button.dataset.sheet));
 });
 root.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", closeSheets));
 root.querySelector("#dateSheet .j-bottom-sheet__confirm").addEventListener("click", () => {

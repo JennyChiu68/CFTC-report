@@ -1,0 +1,16 @@
+{
+  "css": "9c4bcc9184c3245a8eb41c3ecd9df3ea7fab0a8f6e26528343415146fffb4459",
+  "shell": "5acc6eed1a3cfa484cd8148c6c547b51be428e8067b546c3f9c907310a4e24b5",
+  "assets": {
+    "hero-cftc-report-gold.png": "e16abf2a765a66045b41ce132cb96b51d2c3f4044809a6241a01cb5a6cef1174",
+    "plus-shell-bookmark-569-115.svg": "ad59e84a79dfba121df7f5f055ccd84b157d85ac9de871f1ea82ca3b0828d34d",
+    "plus-shell-floating-window-569-115.svg": "c1326016ff59985436ce5e58ea3e0737a57cee64129effda2af62219ad20820b",
+    "plus-shell-image-569-115.svg": "9ae40e763ea00069f9f87de2650fffa91987a1f58ef0259bb93f3055861c1798",
+    "plus-shell-nav-back-569-150.svg": "bec70748b6382e6628d587070b1bb0eaddaff8bc9dcaaf2115182f9c2a9a09db",
+    "plus-shell-nav-capsule-569-150.svg": "e4319c6a55a7574c99f235eedd5cd6abb19d629ba76e65407fb8cdffb0d17189",
+    "plus-shell-status-battery-569-149.svg": "51f32aec3b5d6c88a425b5e0bdbe515601f6a9a98ff48508f6e1553e2c3f27d5",
+    "plus-shell-status-cellular-569-149.svg": "5d2b3f44d3a9481380f5e4fe7404a24211348c97d0ce8f953c11e2dd0d0142b2",
+    "plus-shell-status-wifi-569-149.svg": "34072d8f596b1a1a865f6ac93e8f88a0a5259722e931bd08642f27c0e1a999f4",
+    "plus-shell-wechat-569-115.svg": "678f4c288d8252477c146c46c75252805bf01c3c09cc21713f961d898fa756fd"
+  }
+}

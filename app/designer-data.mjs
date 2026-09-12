@@ -7,7 +7,7 @@ export function applySnapshot(asset, snapshots, reportDate) {
   const counterpart = current.breakdown[0];
   return {
     ...asset, ...current, unavailable: false,
-    counterpartLabel: counterpart?.name,
+    counterpartLabel: asset.counterpartLabel || counterpart?.name,
     history: eligible.slice(0, 52).map(point => ({
       ...point,
       net: point.long - point.short,

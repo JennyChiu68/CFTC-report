@@ -26,11 +26,6 @@
   --j-text-muted: rgba(0, 0, 0, 0.45);
 }
 
-.data-status { margin: 0 16px 8px; }
-.data-status[hidden] { display: none; }
-.date-wheel__column { max-height: 180px; overflow-y: auto; scrollbar-width: none; }
-.date-wheel__column button { flex-shrink: 0; width: 100%; }
-
 * {
   box-sizing: border-box;
 }
