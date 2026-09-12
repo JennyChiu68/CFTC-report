@@ -20,6 +20,8 @@ test("server-renders the supplied miniapp shell", async () => {
   const html = await response.text();
   for (const text of ["CFTC持仓报告", "j-mini-fixed-shell", "pageTitle", "dateSelector", "appView", "j-bottom-actions-fixed", "选择报告日期"]) assert.ok(html.includes(text), text);
   assert.doesNotMatch(html, /预览完整功能|钻石VIP专享功能|cot-asset-card/);
+  assert.match(html, /正在读取…/);
+  assert.doesNotMatch(html, /2026年9月1日/);
 });
 
 test("designer assets and live data integration are present", async () => {

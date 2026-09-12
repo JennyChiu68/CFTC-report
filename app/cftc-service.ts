@@ -27,7 +27,11 @@ const fields = {
 } as const;
 
 function numeric(row: RawRow, key: string) {
-  return Number(row[key] ?? 0);
+  const raw = row[key];
+  if (raw === undefined || raw === null || String(raw).trim() === "") throw new Error("Missing CFTC field: " + key);
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || (!key.startsWith("change_") && value < 0)) throw new Error("Invalid CFTC field: " + key);
+  return value;
 }
 
 function traderRow(row: RawRow, keys: { name: string; long: string; short: string; spread?: string; longChange: string; shortChange: string }): TraderRow {
@@ -87,16 +91,36 @@ function transformTff(row: RawRow): CftcSnapshot {
 export async function fetchCftcSnapshots(asset: CftcAsset, requestedLimit = 52) {
   const limit = Math.max(1, Math.min(104, Number.isFinite(requestedLimit) ? requestedLimit : 52));
   const endpoint = new URL(endpoints[asset.reportType]);
-  endpoint.searchParams.set("$select", fields[asset.reportType].join(","));
+  endpoint.searchParams.set("$select", ["cftc_contract_market_code", ...fields[asset.reportType]].join(","));
   endpoint.searchParams.set("$where", `cftc_contract_market_code='${asset.contractCode}'`);
   endpoint.searchParams.set("$order", "report_date_as_yyyy_mm_dd DESC");
   endpoint.searchParams.set("$limit", String(limit));
 
-  const response = await fetch(endpoint, { headers: { accept: "application/json" } });
+  const response = await fetch(endpoint, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`CFTC API ${response.status}`);
   const rows = await response.json() as RawRow[];
+  return validateCftcRows(asset, rows);
+}
+
+export function validateCftcRows(asset: CftcAsset, rows: RawRow[]): CftcSnapshot[] {
+  if (!Array.isArray(rows)) throw new Error("Invalid CFTC response");
   const transform = asset.reportType === "Disaggregated" ? transformDisaggregated : transformTff;
-  return rows.map(transform).filter((snapshot) => snapshot.date);
+  const dates = new Set<string>();
+  return rows.map(row => {
+    if (row.cftc_contract_market_code !== asset.contractCode) throw new Error("CFTC contract mismatch");
+    const point = transform(row);
+    const date = new Date(point.date + "T00:00:00Z");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(point.date) || !Number.isFinite(date.getTime()) ||
+        date.toISOString().slice(0, 10) !== point.date || date.getTime() > Date.now() || dates.has(point.date)) {
+      throw new Error("Invalid or duplicate CFTC report date");
+    }
+    dates.add(point.date);
+    for (const side of ["long", "short"] as const) {
+      const total = point.breakdown.reduce((sum, trader) => sum + trader[side] + (trader.spreading ?? 0), 0);
+      if (total !== point.openInterest) throw new Error("CFTC open interest reconciliation failed");
+    }
+    return point;
+  }).sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export const cftcSource = "https://publicreporting.cftc.gov";

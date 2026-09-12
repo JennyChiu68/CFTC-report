@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const snapshots = await fetchCftcSnapshots(asset, limit);
     return Response.json(
       { symbol: asset.symbol, source: cftcSource, snapshots, syncedAt: new Date().toISOString() },
-      { headers: { "cache-control": "public, max-age=300, s-maxage=3600" } },
+      { headers: { "cache-control": "public, max-age=300, s-maxage=300" } },
     );
   } catch {
     return Response.json({ error: "CFTC历史数据暂时不可用" }, { status: 502 });

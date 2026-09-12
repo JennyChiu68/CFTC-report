@@ -14,7 +14,7 @@ test("financial core means leveraged funds, not asset managers", () => {
   const current = applySnapshot(asset, [snapshot("2026-09-08", 120)], "2026-09-08");
   assert.equal(categorySnapshot(current, "managed").long, 120);
   assert.equal(categorySnapshot(current, "producer").long, 10);
-  assert.equal(categorySnapshot(current, "swap"), null);
+  assert.equal(categorySnapshot(current, "swap").name, "资管机构");
 });
 
 test("historical views exclude future data and mark missing dates", () => {
@@ -24,6 +24,10 @@ test("historical views exclude future data and mark missing dates", () => {
   assert.equal(historical.history.length, 1);
   assert.equal(historical.history[0].net, 80);
   assert.equal(applySnapshot(asset, points, "2026-08-01").unavailable, true);
+  const missing = applySnapshot(asset, points, "2026-09-04");
+  assert.equal(missing.unavailable, true);
+  assert.equal(missing.long, null);
+  assert.equal(missing.history.length, 0);
 });
 
 test("history uses each actual category observation, never fixed weights", () => {
@@ -33,6 +37,7 @@ test("history uses each actual category observation, never fixed weights", () =>
 });
 
 test("missing categories are not synthesized", () => {
+  assert.equal(categorySnapshot(asset, "managed"), null);
   assert.equal(categorySnapshot(asset, "producer"), null);
   assert.equal(categorySnapshot({ ...asset, unavailable: true }, "managed"), null);
 });

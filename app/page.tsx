@@ -19,5 +19,6 @@ export default function Home() {
     document.head.appendChild(script);
     return () => { cancelled = true; dispose?.(); script.remove(); };
   }, []);
-  return <div ref={root} dangerouslySetInnerHTML={{ __html: designerShell }} />;
+  // Preserve the designer shell, but never server-render its example report date.
+  return <div ref={root} dangerouslySetInnerHTML={{ __html: designerShell.replace(/(<span id="dateLabel">)[^<]*(<\/span>)/, "$1正在读取…$2") }} />;
 }

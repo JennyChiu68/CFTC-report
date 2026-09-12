@@ -1,0 +1,180 @@
+{
+  "auditedAt": "2026-09-12T02:18:55.933Z",
+  "sources": {
+    "Disaggregated": "https://www.cftc.gov/dea/futures/other_lf.htm",
+    "Petroleum": "https://www.cftc.gov/dea/futures/petroleum_lf.htm",
+    "NaturalGas": "https://www.cftc.gov/dea/futures/nat_gas_lf.htm",
+    "TFF": "https://www.cftc.gov/dea/futures/financial_lf.htm"
+  },
+  "records": 1456,
+  "results": [
+    {
+      "symbol": "XAU",
+      "contractCode": "088691",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "c14385c5442a0f00cabecb1bf13f5ac23137a15e43c8ddaf4a01d70d2c3cad42"
+    },
+    {
+      "symbol": "XAG",
+      "contractCode": "084691",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "996b55fd8702aa0a41db5a8273186a61c10c633c39a218b14142df5bc6cc64b7"
+    },
+    {
+      "symbol": "HG",
+      "contractCode": "085692",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "526f153d715ea7ec8593195d83d359d1e09dd0379e30782d06fdb28aed94192f"
+    },
+    {
+      "symbol": "CL",
+      "contractCode": "067651",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "f0b336273f26d381b5a3a32cae6e032ec43b70bd601345459ed146e8755d7ea9"
+    },
+    {
+      "symbol": "NG",
+      "contractCode": "023651",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "6783fdbd8a31f45e660209f57fca563152d9e6067c376f8ce379010fcd8b2848"
+    },
+    {
+      "symbol": "BZ",
+      "contractCode": "06765T",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "9ac1799da0e057b00bd565b59a7c23c5bdfe7e660bb2ecc17728d5bc893fdb5c"
+    },
+    {
+      "symbol": "DXY",
+      "contractCode": "098662",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "cade6f88f126a5b532182d64ac06e8dbfaac0610e3e2de38f956ae0e02449d8c"
+    },
+    {
+      "symbol": "EUR",
+      "contractCode": "099741",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "e21c3c056a5a5aebb9444df4cf1fa0380faf0a96c4568ed02f71350bac0a8810"
+    },
+    {
+      "symbol": "GBP",
+      "contractCode": "096742",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "32d856f10a89169d9b565bfcb71778ba49186e11f9b39489409249e0c9775070"
+    },
+    {
+      "symbol": "JPY",
+      "contractCode": "097741",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "213d7b410e2dc1ddfad77d7e930cfa5ded2f8d59d044ec869fedd15cec08e23f"
+    },
+    {
+      "symbol": "AUD",
+      "contractCode": "232741",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "f7603c892fcc1b9cf728b8ea5c3559e606200533aa172dc15fa23dde6f7e1708"
+    },
+    {
+      "symbol": "CAD",
+      "contractCode": "090741",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "aaad12a04d122e999f8bcec45a6437505c14d3467940e44bc1c1682a4766cf75"
+    },
+    {
+      "symbol": "ES",
+      "contractCode": "13874A",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "303cb7364245c7ca821f623502b2a6b7e88da54f28e9b18d2868409d33fdab38"
+    },
+    {
+      "symbol": "NQ",
+      "contractCode": "209742",
+      "count": 104,
+      "latest": "2026-09-08",
+      "oldest": "2024-09-17",
+      "latestOfficialTextMatch": true,
+      "allRowsValidated": true,
+      "applicationApiMatch": true,
+      "priorPeriodDifferences": [],
+      "sha256": "a38c3fb9f790c389c5d0ca8771aa7a648f475da0a712fe043be4a929c3bbb6fb"
+    }
+  ]
+}

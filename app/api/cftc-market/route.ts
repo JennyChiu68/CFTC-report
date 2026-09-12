@@ -21,6 +21,6 @@ export async function GET() {
   const reportDate = Object.values(histories).flatMap((items) => items[0]?.date ? [items[0].date] : []).sort().at(-1) ?? null;
   return Response.json(
     { source: cftcSource, scope: "Futures Only", reportDate, syncedAt: new Date().toISOString(), histories, unavailable },
-    { headers: { "cache-control": "public, max-age=300, s-maxage=3600" } },
+    { headers: { "cache-control": "public, max-age=300, s-maxage=300" } },
   );
 }
