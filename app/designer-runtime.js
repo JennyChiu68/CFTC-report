@@ -1,7 +1,8 @@
 import { assets as savedAssets } from "./cftc-data";
 import { applySnapshot, categorySnapshot, categoryHistoryValue } from "./designer-data.mjs";
 
-export function mountCftc(root) {
+export function mountCftc(root, options = {}) {
+const fetchData = options.fetchData || globalThis.fetch.bind(globalThis);
 const physicalSource = "https://www.cftc.gov/dea/futures/other_lf.htm";
 const petroleumSource = "https://www.cftc.gov/dea/futures/petroleum_lf.htm";
 const gasSource = "https://www.cftc.gov/dea/futures/nat_gas_lf.htm";
@@ -90,7 +91,7 @@ function refreshAssets() {
 
 async function loadMarket() {
   try {
-    const response = await fetch("/api/cftc-market", { signal: requests.signal });
+    const response = await fetchData("/api/cftc-market", { signal: requests.signal });
     if (!response.ok) throw new Error("unavailable");
     const payload = await response.json();
     for (const [symbol, points] of Object.entries(payload.histories || {})) {
@@ -120,7 +121,7 @@ async function loadDetail(symbol) {
   if (pending.has(symbol) || fullHistories.has(symbol)) return;
   pending.add(symbol);
   try {
-    const response = await fetch("/api/cftc-history?symbol=" + encodeURIComponent(symbol) + "&limit=104", { signal: requests.signal });
+    const response = await fetchData("/api/cftc-history?symbol=" + encodeURIComponent(symbol) + "&limit=104", { signal: requests.signal });
     if (!response.ok) throw new Error("unavailable");
     const payload = await response.json();
     if (!payload.snapshots?.length) throw new Error("empty");

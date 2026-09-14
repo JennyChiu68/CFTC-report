@@ -96,3 +96,18 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
 - [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+# GitHub Pages preview
+
+Preview URL: https://jennychiu68.github.io/CFTC-report/
+
+The separate `github-preview` entry reuses the designer shell, stylesheet and
+interaction runtime. It does not replace the server-backed Sites deployment.
+Run `npm run build:pages` to build `.pages-dist` and fetch 104 official Futures
+Only reports for each of the 14 supported markets. Invalid, empty or mixed-date
+data fails the build rather than publishing example values.
+
+`.github/workflows/pages.yml` deploys on source updates and on a twice-hourly
+schedule. GitHub may delay scheduled jobs, and may disable schedules in inactive
+public repositories. The workflow can also be run manually from Actions. A failed
+refresh leaves the previous deployment and its actual report date intact.
+This is a public product preview, not the production Jin10 membership service.
