@@ -29,6 +29,8 @@ test("designer assets and live data integration are present", async () => {
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   for (const text of ["/api/cftc-market", "/api/cftc-history?symbol=", "renderDateWheel", "categoryHistoryValue", "loadDetail", "requests.abort()"]) assert.ok(runtime.includes(text), text);
   assert.doesNotMatch(runtime, /homeTraderFallbacks|grossTotal|Math.random/);
+  // Do not append explanatory UI absent from the supplied designer version.
+  assert.doesNotMatch(runtime, /CFTC 原表：|最近成功读取：|<button[^>]*>计算口径<\/button>/);
   assert.match(css, /max-width: 414px/);
   assert.match(css, /analysis-detail-card/);
   const shell = await readFile(new URL("../app/designer-shell.ts", import.meta.url), "utf8");

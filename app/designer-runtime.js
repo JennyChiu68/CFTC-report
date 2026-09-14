@@ -75,7 +75,6 @@ let disposed = false;
 let selectedReportDate = null;
 let pendingDate = null;
 let statusText = "正在读取 CFTC 官方数据…";
-let lastSyncedAt = "";
 let marketLoading = true;
 const statusNotice = document.createElement("div");
 statusNotice.className = "notice";
@@ -102,7 +101,6 @@ async function loadMarket() {
     }
     if (!histories.size) throw new Error("empty");
     for (const symbol of payload.unavailable || []) histories.delete(symbol);
-    lastSyncedAt = payload.syncedAt;
     marketLoading = false;
     statusText = payload.unavailable?.length ? "以下品种官方数据暂不可用，不以旧数据替代：" + payload.unavailable.join("、") : "";
     refreshAssets();
@@ -128,7 +126,6 @@ async function loadDetail(symbol) {
     if (!payload.snapshots?.length) throw new Error("empty");
     histories.set(symbol, payload.snapshots);
     fullHistories.add(symbol);
-    lastSyncedAt = payload.syncedAt;
     statusText = "";
     refreshAssets();
     if (!disposed) render();
@@ -898,15 +895,6 @@ function render() {
   if (state.screen === "detail") renderDetail();
   if (state.screen === "analysisDetail") renderAnalysisDetail();
   if (state.screen === "pro") renderPro();
-  const missing = assets.filter(asset => asset.unavailable);
-  root.querySelector("#appView").insertAdjacentHTML("beforeend", `
-    <p class="source-note">CFTC 原表：<a href="${physicalSource}" target="_blank" rel="noopener noreferrer">金属</a> / <a href="${petroleumSource}" target="_blank" rel="noopener noreferrer">石油</a> / <a href="${gasSource}" target="_blank" rel="noopener noreferrer">天然气</a> / <a href="${financialSource}" target="_blank" rel="noopener noreferrer">金融</a>。仅期货（不含期权），单位：合约手数，非现货行情。
-    ${reportMeta.asOf ? "持仓日期：" + reportMeta.asOf + "。" : ""}
-    ${lastSyncedAt ? "最近成功读取：" + new Date(lastSyncedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) + "（北京时间）。" : ""}
-    ${missing.length && !marketLoading ? "本期暂无数据：" + missing.map(asset => screenName(asset)).join("、") + "。" : ""}
-    净仓、占比、历史分位与解读由本页依据官方数据计算，并非 CFTC 发布的分析结论。
-    <button type="button" data-help="method">计算口径</button></p>
-  `);
   bindViewEvents();
   initCharts();
   if (state.screen === "detail" && !pending.has(state.selectedSymbol) && !fullHistories.has(state.selectedSymbol)) {
